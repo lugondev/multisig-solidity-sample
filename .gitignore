@@ -1,0 +1,15 @@
+node_modules/
+cache/
+build/
+typechain/
+artifacts/
+coverage*
+.env
+.vscode
+.idea
+.deps
+.DS_Store
+.vscode
+
+contracts/artifacts/
+contracts/VerifySignature.sol
