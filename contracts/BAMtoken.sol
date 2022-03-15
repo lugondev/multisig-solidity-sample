@@ -5,6 +5,13 @@ pragma solidity ^0.8.3;
 import "./MappingERC20.sol";
 
 contract BAMtoken is MappingERC20 {
+    event UpdateBalance(
+        address indexed account,
+        uint256 beforeBalance,
+        uint256 afterBalance,
+        string reason
+    );
+
     constructor(string memory name, string memory symbol)
         MappingERC20(name, symbol)
     {}
@@ -17,7 +24,11 @@ contract BAMtoken is MappingERC20 {
         _burn(_msgSender(), _amount);
     }
 
-    function updateBalance(address _account, uint256 _amount) public onlyOwner {
+    function updateBalance(
+        address _account,
+        uint256 _amount,
+        string memory _reason
+    ) public onlyOwner {
         uint256 balance = balanceOf(_account);
         require(balance != _amount, "amount is equal current balance");
         if (_amount > balance) {
@@ -25,6 +36,8 @@ contract BAMtoken is MappingERC20 {
         } else {
             _burn(_account, balance - _amount);
         }
+
+        emit UpdateBalance(_account, balance, _amount, _reason);
     }
 
     function mapAddress(address _target) public {
