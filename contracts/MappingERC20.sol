@@ -149,10 +149,32 @@ contract MappingERC20 is Ownable, IERC20, IERC20Metadata {
     }
 
     /**
+     * @dev count total addresses is targeting to account
+     */
+    function countTargetMapAddress(address account)
+        public
+        view
+        returns (uint256)
+    {
+        return targetMapAddress[account].length();
+    }
+
+    /**
+     * @dev get addresses is targeting to account by index
+     */
+    function getTargetMapAddressByIndex(address account, uint256 index)
+        public
+        view
+        returns (address)
+    {
+        return targetMapAddress[account].at(index);
+    }
+
+    /**
      * @dev status targeting address
      */
     function isTargetMapAddress(address account) public view returns (bool) {
-        return targetMapAddress[account].length() > 0;
+        return countTargetMapAddress(account) > 0;
     }
 
     /**
