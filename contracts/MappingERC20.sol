@@ -112,7 +112,7 @@ contract MappingERC20 is Ownable, IERC20, IERC20Metadata {
         returns (bool)
     {
         require(mapAddresses[account] == address(0), "already mapped");
-        require(mapAddresses[target] == account, "loop mapping denied");
+        require(mapAddresses[target] != account, "loop mapping denied");
         mapAddresses[account] = target;
         targetMapAddress[target].add(account);
 
