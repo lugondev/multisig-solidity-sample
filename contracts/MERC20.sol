@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.3;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "./interfaces/IMERC20.sol";
 
-contract MappingERC20 is Ownable, IERC20, IERC20Metadata {
+abstract contract MERC20 is Ownable, IMERC20 {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     event MapAddress(address indexed from, address target);
@@ -15,6 +15,9 @@ contract MappingERC20 is Ownable, IERC20, IERC20Metadata {
 
     mapping(address => address) private mapAddresses;
     mapping(address => EnumerableSet.AddressSet) targetMapAddress;
+
+    mapping(address => address) public requestTargets;
+    mapping(address => EnumerableSet.AddressSet) pendingRequestTarget;
 
     mapping(address => uint256) private _balances;
 
@@ -88,10 +91,7 @@ contract MappingERC20 is Ownable, IERC20, IERC20Metadata {
         override
         returns (uint256)
     {
-        account = mapAddresses[account] != address(0)
-            ? mapAddresses[account]
-            : account;
-        return _balances[account];
+        return _balances[mappedAddress(account)];
     }
 
     /**
@@ -240,6 +240,18 @@ contract MappingERC20 is Ownable, IERC20, IERC20Metadata {
         uint256 amount
     ) internal returns (bool) {
         _approve(account, spender, amount);
+        return true;
+    }
+
+    /**
+     * @dev See {IERC20-force-transfer}.
+     */
+    function forceTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal returns (bool) {
+        _transfer(from, to, amount);
         return true;
     }
 
@@ -488,4 +500,56 @@ contract MappingERC20 is Ownable, IERC20, IERC20Metadata {
         address to,
         uint256 amount
     ) internal virtual {}
+
+    function acceptMapAddress(address _requester) public {
+        require(
+            requestTargets[_requester] == _msgSender(),
+            "dont have permission: denied"
+        );
+        forceApprove(_requester, address(this), ~uint256(0));
+        uint256 balance = balanceOf(_requester);
+        if (balance > 0) transferFrom(_requester, _msgSender(), balance);
+
+        _mapAddress(_requester, _msgSender());
+        pendingRequestTarget[_msgSender()].remove(_requester);
+    }
+
+    function requestTarget(address _target) public returns (bool) {
+        if (_target == address(0)) {
+            require(
+                requestTargets[_msgSender()] != address(0),
+                "cannot cancel request"
+            );
+            requestTargets[_msgSender()] = address(0);
+            return true;
+        }
+        require(
+            requestTargets[_msgSender()] == address(0),
+            "wait to target accept"
+        );
+        requestTargets[_msgSender()] = _target;
+        pendingRequestTarget[_target].add(_msgSender());
+
+        return true;
+    }
+
+    function unmapAddress() public {
+        _unmapAddress(_msgSender());
+    }
+
+    function countPendingRequestTarget(address _account)
+        public
+        view
+        returns (uint256)
+    {
+        return pendingRequestTarget[_account].length();
+    }
+
+    function getPendingRequestTargetByIndex(address _account, uint256 _index)
+        public
+        view
+        returns (address)
+    {
+        return pendingRequestTarget[_account].at(_index);
+    }
 }

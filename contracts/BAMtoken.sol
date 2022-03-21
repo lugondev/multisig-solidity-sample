@@ -2,23 +2,34 @@
 
 pragma solidity ^0.8.3;
 
-import "./MappingERC20.sol";
+import "./MERC20.sol";
+import "./interfaces/IBridgeMERC20.sol";
 
-contract BAMtoken is MappingERC20 {
-    using EnumerableSet for EnumerableSet.AddressSet;
+abstract contract BAMtoken is MERC20 {
     event UpdateBalance(
         address indexed account,
         uint256 beforeBalance,
         uint256 afterBalance,
         string reason
     );
+    event BridgeOut(address indexed account, uint256 amount);
+    event BridgeIn(address indexed account, uint256 amount);
 
-    mapping(address => address) public requestTargets;
-    mapping(address => EnumerableSet.AddressSet) pendingRequestTarget;
+    address public lockBridge;
+    mapping(IBridgeMERC20 => bool) public bridgeTokens;
 
-    constructor(string memory name, string memory symbol)
-        MappingERC20(name, symbol)
-    {}
+    constructor(string memory name, string memory symbol) MERC20(name, symbol) {
+        lockBridge = bytesToAddress("bridge");
+        _approve(lockBridge, address(this), ~uint256(0));
+    }
+
+    modifier onlyBridgeToken() {
+        require(
+            bridgeTokens[IBridgeMERC20(_msgSender())],
+            "caller is not bridge token "
+        );
+        _;
+    }
 
     function mint(address _address, uint256 _amount) public onlyOwner {
         _mint(_address, _amount);
@@ -41,58 +52,58 @@ contract BAMtoken is MappingERC20 {
             _burn(_account, balance - _amount);
         }
 
-        emit UpdateBalance(_account, balance, _amount, _reason);
+        emit UpdateBalance(mappedAddress(_account), balance, _amount, _reason);
     }
 
-    function acceptMapAddress(address _requester) public {
+    function bridgeOut(IBridgeMERC20 _bridgeToken, uint256 _amount) public {
         require(
-            requestTargets[_requester] == _msgSender(),
-            "dont have permission: denied"
+            _amount >= balanceOf(_msgSender()),
+            "bridge amount exceeds balance"
         );
-        forceApprove(_requester, address(this), ~uint256(0));
-        uint256 balance = balanceOf(_requester);
-        if (balance > 0) transferFrom(_requester, _msgSender(), balance);
 
-        _mapAddress(_requester, _msgSender());
-        pendingRequestTarget[_msgSender()].remove(_requester);
+        forceTransfer(_msgSender(), lockBridge, _amount);
+        _bridgeToken.bridgeIn(mappedAddress(_msgSender()), _amount);
+
+        emit BridgeOut(mappedAddress(_msgSender()), _amount);
     }
 
-    function requestTarget(address _target) public returns (bool) {
-        if (_target == address(0)) {
-            require(
-                requestTargets[_msgSender()] != address(0),
-                "cannot cancel request"
-            );
-            requestTargets[_msgSender()] = address(0);
-            return true;
-        }
-        require(
-            requestTargets[_msgSender()] == address(0),
-            "wait to target accept"
-        );
-        requestTargets[_msgSender()] = _target;
-        pendingRequestTarget[_target].add(_msgSender());
+    function bridgeIn(address _account, uint256 _amount)
+        public
+        onlyBridgeToken
+    {
+        _mint(_account, _amount);
+
+        emit BridgeIn(mappedAddress(_msgSender()), _amount);
+    }
+
+    function addBridge(IBridgeMERC20 _bridge) public onlyOwner returns (bool) {
+        require(!bridgeTokens[_bridge], "bridge is added");
+        require(_bridge.isMainMERC20(address(this)), "invalid bridge");
+        bridgeTokens[_bridge] = true;
 
         return true;
     }
 
-    function unmapAddress() public {
-        _unmapAddress(_msgSender());
+    function removeBridge(IBridgeMERC20 _bridge)
+        public
+        onlyOwner
+        returns (bool)
+    {
+        require(bridgeTokens[_bridge], "not bridge address");
+
+        bridgeTokens[_bridge] = false;
+
+        return true;
     }
 
-    function countPendingRequestTarget(address _account)
-        public
-        view
-        returns (uint256)
+    function bytesToAddress(string memory _name)
+        private
+        pure
+        returns (address addr)
     {
-        return pendingRequestTarget[_account].length();
-    }
-
-    function getPendingRequestTargetByIndex(address _account, uint256 _index)
-        public
-        view
-        returns (address)
-    {
-        return pendingRequestTarget[_account].at(_index);
+        bytes memory data = bytes(_name);
+        assembly {
+            addr := mload(add(data, 20))
+        }
     }
 }
