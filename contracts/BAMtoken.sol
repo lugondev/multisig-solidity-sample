@@ -56,6 +56,7 @@ abstract contract BAMtoken is MERC20 {
     }
 
     function bridgeOut(IBridgeMERC20 _bridgeToken, uint256 _amount) public {
+        require(_amount > 0, "amount must be greater than 0");
         require(
             _amount >= balanceOf(_msgSender()),
             "bridge amount exceeds balance"
@@ -67,13 +68,18 @@ abstract contract BAMtoken is MERC20 {
         emit BridgeOut(mappedAddress(_msgSender()), _amount);
     }
 
-    function bridgeIn(address _account, uint256 _amount)
-        public
-        onlyBridgeToken
-    {
-        _mint(_account, _amount);
+    function bridgeIn(IBridgeMERC20 _bridgeToken, bytes32 _id) public {
+        address account = _bridgeToken.getBridgeOwner(_id);
+        require(
+            _bridgeToken.isPendingBridge(_id) && account != address(0),
+            "invalid id bridge"
+        );
 
-        emit BridgeIn(mappedAddress(_msgSender()), _amount);
+        uint256 amount = _bridgeToken.getBridgeAmount(_id);
+        _bridgeToken.approveBridge(account, _id);
+        forceTransfer(lockBridge, account, amount);
+
+        emit BridgeIn(mappedAddress(_msgSender()), amount);
     }
 
     function addBridge(IBridgeMERC20 _bridge) public onlyOwner returns (bool) {
