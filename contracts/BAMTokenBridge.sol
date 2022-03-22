@@ -12,7 +12,7 @@ abstract contract BAMPublicMERC20 is MERC20 {
     struct BridgeInfo {
         address account;
         uint256 amount;
-        bool status;
+        bool done;
     }
 
     mapping(address => uint256) nonces;
@@ -51,7 +51,7 @@ abstract contract BAMPublicMERC20 is MERC20 {
         BridgeInfo memory data = BridgeInfo({
             account: _msgSender(),
             amount: _amount,
-            status: false
+            done: false
         });
 
         bytes32 id = _generateId(_msgSender(), _amount, nonces[_msgSender()]);
@@ -67,7 +67,7 @@ abstract contract BAMPublicMERC20 is MERC20 {
             data.account == _msgSender(),
             "caller is not owner bridge data"
         );
-        require(!data.status, "data is approved");
+        require(!data.done, "data is approved");
 
         delete bridgeInfos[_id];
         transfer(address(this), data.amount);
@@ -81,9 +81,9 @@ abstract contract BAMPublicMERC20 is MERC20 {
     {
         BridgeInfo memory data = bridgeInfos[_id];
         require(data.account == _account, "caller is not owner bridge data");
-        require(!data.status, "data is approved");
+        require(!data.done, "data is approved");
 
-        bridgeInfos[_id].status = true;
+        bridgeInfos[_id].done = true;
         _burn(address(this), data.amount);
 
         emit ApproveBridge(_msgSender(), _id);
@@ -98,7 +98,7 @@ abstract contract BAMPublicMERC20 is MERC20 {
     }
 
     function isPendingBridge(bytes32 _id) public view returns (bool) {
-        return !bridgeInfos[_id].status;
+        return !bridgeInfos[_id].done;
     }
 
     function _generateId(
