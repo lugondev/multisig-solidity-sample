@@ -18,7 +18,7 @@ abstract contract BAMPublicMERC20 is MERC20 {
     mapping(address => uint256) nonces;
     mapping(bytes32 => BridgeInfo) public bridgeInfos;
 
-    IBamMERC20 merc20;
+    IBamMERC20 public merc20;
 
     constructor(IBamMERC20 _merc20) MERC20(merc20.name(), _merc20.symbol()) {
         merc20 = _merc20;
