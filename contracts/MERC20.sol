@@ -5,9 +5,11 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "./interfaces/IMERC20.sol";
 
-abstract contract MERC20 is Ownable, IMERC20 {
+abstract contract MERC20 is Ownable, IMERC20, Pausable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     event MapAddress(address indexed from, address target);
@@ -16,7 +18,7 @@ abstract contract MERC20 is Ownable, IMERC20 {
     mapping(address => address) private mapAddresses;
     mapping(address => EnumerableSet.AddressSet) targetMapAddress;
 
-    mapping(address => address) public requestTargets;
+    mapping(address => address) _requestTargets;
     mapping(address => EnumerableSet.AddressSet) pendingRequestTarget;
 
     mapping(address => uint256) private _balances;
@@ -97,7 +99,12 @@ abstract contract MERC20 is Ownable, IMERC20 {
     /**
      * @dev address after mapping
      */
-    function mappedAddress(address account) public view returns (address) {
+    function mappedAddress(address account)
+        public
+        view
+        override
+        returns (address)
+    {
         return
             mapAddresses[account] != address(0)
                 ? mapAddresses[account]
@@ -369,6 +376,7 @@ abstract contract MERC20 is Ownable, IMERC20 {
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
         _beforeTokenTransfer(sender, recipient, amount);
+        require(!paused(), "ERC20Pausable: token transfer while paused");
 
         uint256 senderBalance = _balances[sender];
         require(
@@ -396,7 +404,7 @@ abstract contract MERC20 is Ownable, IMERC20 {
      */
     function _mint(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
-        account = mappedAddress(_msgSender());
+        account = mappedAddress(account);
 
         _beforeTokenTransfer(address(0), account, amount);
 
@@ -420,7 +428,7 @@ abstract contract MERC20 is Ownable, IMERC20 {
      */
     function _burn(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: burn from the zero address");
-        account = mappedAddress(_msgSender());
+        account = mappedAddress(account);
 
         _beforeTokenTransfer(account, address(0), amount);
 
@@ -501,9 +509,9 @@ abstract contract MERC20 is Ownable, IMERC20 {
         uint256 amount
     ) internal virtual {}
 
-    function acceptMapAddress(address _requester) public {
+    function acceptMapAddress(address _requester) public override {
         require(
-            requestTargets[_requester] == _msgSender(),
+            _requestTargets[_requester] == _msgSender(),
             "dont have permission: denied"
         );
         forceApprove(_requester, address(this), ~uint256(0));
@@ -514,32 +522,33 @@ abstract contract MERC20 is Ownable, IMERC20 {
         pendingRequestTarget[_msgSender()].remove(_requester);
     }
 
-    function requestTarget(address _target) public returns (bool) {
+    function requestTarget(address _target) public override returns (bool) {
         if (_target == address(0)) {
             require(
-                requestTargets[_msgSender()] != address(0),
+                _requestTargets[_msgSender()] != address(0),
                 "cannot cancel request"
             );
-            requestTargets[_msgSender()] = address(0);
+            _requestTargets[_msgSender()] = address(0);
             return true;
         }
         require(
-            requestTargets[_msgSender()] == address(0),
+            _requestTargets[_msgSender()] == address(0),
             "wait to target accept"
         );
-        requestTargets[_msgSender()] = _target;
+        _requestTargets[_msgSender()] = _target;
         pendingRequestTarget[_target].add(_msgSender());
 
         return true;
     }
 
-    function unmapAddress() public {
+    function unmapAddress() public override {
         _unmapAddress(_msgSender());
     }
 
     function countPendingRequestTarget(address _account)
         public
         view
+        override
         returns (uint256)
     {
         return pendingRequestTarget[_account].length();
@@ -548,8 +557,18 @@ abstract contract MERC20 is Ownable, IMERC20 {
     function getPendingRequestTargetByIndex(address _account, uint256 _index)
         public
         view
+        override
         returns (address)
     {
         return pendingRequestTarget[_account].at(_index);
+    }
+
+    function requestTargets(address _account)
+        public
+        view
+        override
+        returns (address)
+    {
+        return _requestTargets[_account];
     }
 }

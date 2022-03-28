@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.3;
 
-import "./MERC20.sol";
+import "./MERC20Snapshot.sol";
 import "./interfaces/IBridgeMERC20.sol";
 
-abstract contract BAMtoken is MERC20 {
+contract BAMtoken is MERC20Snapshot {
     event UpdateBalance(
         address indexed account,
         uint256 beforeBalance,
@@ -18,7 +18,9 @@ abstract contract BAMtoken is MERC20 {
     address public lockBridge;
     mapping(IBridgeMERC20 => bool) public bridgeTokens;
 
-    constructor(string memory name, string memory symbol) MERC20(name, symbol) {
+    constructor(string memory _name, string memory _symbol)
+        MERC20(_name, _symbol)
+    {
         lockBridge = bytesToAddress("bridge");
         _approve(lockBridge, address(this), ~uint256(0));
     }
@@ -31,11 +33,15 @@ abstract contract BAMtoken is MERC20 {
         _;
     }
 
-    function mint(address _address, uint256 _amount) public onlyOwner {
+    function mint(address _address, uint256 _amount) public override {
         _mint(_address, _amount);
     }
 
-    function burn(uint256 _amount) public {
+    function snapshot() public onlyOwner {
+        _snapshot();
+    }
+
+    function burn(uint256 _amount) public override {
         _burn(_msgSender(), _amount);
     }
 
@@ -111,5 +117,9 @@ abstract contract BAMtoken is MERC20 {
         assembly {
             addr := mload(add(data, 20))
         }
+    }
+
+    function getCurrentSnapshotId() public view returns (uint256) {
+        return _getCurrentSnapshotId();
     }
 }

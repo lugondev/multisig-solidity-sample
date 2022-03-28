@@ -13,12 +13,6 @@ interface IMERC20 is IERC20Metadata {
 
     function burn(uint256 _amount) external;
 
-    function updateBalance(
-        address _account,
-        uint256 _amount,
-        string memory _reason
-    ) external;
-
     function acceptMapAddress(address _requester) external;
 
     function requestTarget(address _target) external returns (bool);
