@@ -3,6 +3,7 @@
 pragma solidity ^0.8.3;
 
 import "./MERC20Snapshot.sol";
+import "./interfaces/IAM.sol";
 import "./interfaces/IBridgeMERC20.sol";
 
 contract BAMtoken is MERC20Snapshot {
@@ -15,14 +16,20 @@ contract BAMtoken is MERC20Snapshot {
     event BridgeOut(address indexed account, uint256 amount);
     event BridgeIn(address indexed account, uint256 amount);
 
-    address public lockBridge;
+    address public immutable lockBridge;
     mapping(IBridgeMERC20 => bool) public bridgeTokens;
 
-    constructor(string memory _name, string memory _symbol)
-        MERC20(_name, _symbol)
-    {
+    IAM public iam;
+
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        address _iam
+    ) MERC20(_name, _symbol) {
         lockBridge = bytesToAddress("bridge");
         _approve(lockBridge, address(this), ~uint256(0));
+
+        iam = IAM(_iam);
     }
 
     modifier onlyBridgeToken() {
@@ -31,6 +38,30 @@ contract BAMtoken is MERC20Snapshot {
             "caller is not bridge token "
         );
         _;
+    }
+
+    modifier onlyWhitelist() {
+        require(
+            iam.whitelists(address(this), msg.sender),
+            "only accept whitelist"
+        );
+        _;
+    }
+
+    modifier rejectBlacklist() {
+        require(
+            !iam.blacklists(address(this), msg.sender),
+            "you are in blacklist"
+        );
+        _;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override onlyWhitelist rejectBlacklist {
+        super._beforeTokenTransfer(from, to, amount);
     }
 
     function mint(address _address, uint256 _amount) public override {
