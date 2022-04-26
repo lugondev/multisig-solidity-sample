@@ -16,10 +16,9 @@ contract BAMtoken is MERC20Snapshot {
     event BridgeOut(address indexed account, uint256 amount);
     event BridgeIn(address indexed account, uint256 amount);
 
+    IAM public iam;
     address public lockBridge;
     mapping(IBridgeMERC20 => bool) public bridgeTokens;
-
-    IAM public iam;
 
     function initialize(
         string memory _name,
