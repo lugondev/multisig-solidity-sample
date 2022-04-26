@@ -5,7 +5,7 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-abstract contract AccountManagement is Initializable, AccessControlUpgradeable {
+contract AccountManagement is Initializable, AccessControlUpgradeable {
     event BlackList(address indexed token, address user, bool status);
     event WhiteList(address indexed token, address user, bool status);
 

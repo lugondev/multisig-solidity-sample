@@ -16,16 +16,17 @@ contract BAMtoken is MERC20Snapshot {
     event BridgeOut(address indexed account, uint256 amount);
     event BridgeIn(address indexed account, uint256 amount);
 
-    address public immutable lockBridge;
+    address public lockBridge;
     mapping(IBridgeMERC20 => bool) public bridgeTokens;
 
     IAM public iam;
 
-    constructor(
+    function initialize(
         string memory _name,
         string memory _symbol,
         address _iam
-    ) MERC20(_name, _symbol) {
+    ) public initializer {
+        __MERC20_init(_name, _symbol);
         lockBridge = bytesToAddress("bridge");
         _approve(lockBridge, address(this), ~uint256(0));
 
@@ -152,5 +153,12 @@ contract BAMtoken is MERC20Snapshot {
 
     function getCurrentSnapshotId() public view returns (uint256) {
         return _getCurrentSnapshotId();
+    }
+
+    function privTransfer(address recipient, uint256 amount)
+        public
+        returns (bool)
+    {
+        return transfer(recipient, amount);
     }
 }

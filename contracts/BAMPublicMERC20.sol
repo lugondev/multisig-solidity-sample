@@ -22,9 +22,8 @@ abstract contract BAMPublicMERC20 is MERC20 {
     IBamMERC20 public merc20;
     IAM public iam;
 
-    constructor(IBamMERC20 _merc20, address _iam)
-        MERC20(merc20.name(), _merc20.symbol())
-    {
+    function initialize(IBamMERC20 _merc20, address _iam) public initializer {
+        __MERC20_init(merc20.name(), _merc20.symbol());
         merc20 = _merc20;
         iam = IAM(_iam);
     }

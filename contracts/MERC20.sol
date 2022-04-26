@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.3;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "./interfaces/IMERC20.sol";
 
-abstract contract MERC20 is Ownable, IMERC20, Pausable {
+abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     event MapAddress(address indexed from, address target);
@@ -39,7 +39,10 @@ abstract contract MERC20 is Ownable, IMERC20, Pausable {
      * All two of these values are immutable: they can only be set once during
      * construction.
      */
-    constructor(string memory name_, string memory symbol_) {
+    function __MERC20_init(string memory name_, string memory symbol_)
+        internal
+        initializer
+    {
         _name = name_;
         _symbol = symbol_;
     }
