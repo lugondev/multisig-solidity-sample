@@ -89,7 +89,7 @@ contract BAMtoken is MERC20Snapshot {
             _burn(_account, balance - _amount);
         }
 
-        emit UpdateBalance(mappedAddress(_account), balance, _amount, _reason);
+        emit UpdateBalance(getMappedAddress(_account), balance, _amount, _reason);
     }
 
     function bridgeOut(IBridgeMERC20 _bridgeToken, uint256 _amount) public {
@@ -100,9 +100,9 @@ contract BAMtoken is MERC20Snapshot {
         );
 
         forceTransfer(_msgSender(), lockBridge, _amount);
-        _bridgeToken.bridgeIn(mappedAddress(_msgSender()), _amount);
+        _bridgeToken.bridgeIn(getMappedAddress(_msgSender()), _amount);
 
-        emit BridgeOut(mappedAddress(_msgSender()), _amount);
+        emit BridgeOut(getMappedAddress(_msgSender()), _amount);
     }
 
     function bridgeIn(IBridgeMERC20 _bridgeToken, bytes32 _id) public {
@@ -118,7 +118,7 @@ contract BAMtoken is MERC20Snapshot {
         _bridgeToken.approveBridge(account, _id);
         forceTransfer(lockBridge, account, amount);
 
-        emit BridgeIn(mappedAddress(_msgSender()), amount);
+        emit BridgeIn(getMappedAddress(_msgSender()), amount);
     }
 
     function addBridge(IBridgeMERC20 _bridge) public onlyOwner returns (bool) {

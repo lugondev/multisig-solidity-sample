@@ -96,13 +96,13 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         override
         returns (uint256)
     {
-        return _balances[mappedAddress(account)];
+        return _balances[getMappedAddress(account)];
     }
 
     /**
      * @dev address after mapping
      */
-    function mappedAddress(address account)
+    function getMappedAddress(address account)
         public
         view
         override
@@ -201,8 +201,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         override
         returns (bool)
     {
-        address account = mappedAddress(_msgSender());
-        recipient = mappedAddress(recipient);
+        address account = getMappedAddress(_msgSender());
+        recipient = getMappedAddress(recipient);
         _transfer(account, recipient, amount);
         return true;
     }
@@ -217,8 +217,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         override
         returns (uint256)
     {
-        spender = mappedAddress(spender);
-        owner = mappedAddress(owner);
+        spender = getMappedAddress(spender);
+        owner = getMappedAddress(owner);
         return _allowances[owner][spender];
     }
 
@@ -235,8 +235,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         override
         returns (bool)
     {
-        address account = mappedAddress(_msgSender());
-        spender = mappedAddress(spender);
+        address account = getMappedAddress(_msgSender());
+        spender = getMappedAddress(spender);
         _approve(account, spender, amount);
         return true;
     }
@@ -283,10 +283,10 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         address recipient,
         uint256 amount
     ) public virtual override returns (bool) {
-        sender = mappedAddress(sender);
-        recipient = mappedAddress(recipient);
+        sender = getMappedAddress(sender);
+        recipient = getMappedAddress(recipient);
         _transfer(sender, recipient, amount);
-        address account = mappedAddress(_msgSender());
+        address account = getMappedAddress(_msgSender());
 
         uint256 currentAllowance = _allowances[sender][account];
         require(
@@ -317,8 +317,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         virtual
         returns (bool)
     {
-        spender = mappedAddress(spender);
-        address account = mappedAddress(_msgSender());
+        spender = getMappedAddress(spender);
+        address account = getMappedAddress(_msgSender());
         _approve(account, spender, _allowances[account][spender] + addedValue);
         return true;
     }
@@ -342,8 +342,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         virtual
         returns (bool)
     {
-        spender = mappedAddress(spender);
-        address account = mappedAddress(_msgSender());
+        spender = getMappedAddress(spender);
+        address account = getMappedAddress(_msgSender());
         uint256 currentAllowance = _allowances[account][spender];
         require(
             currentAllowance >= subtractedValue,
@@ -409,7 +409,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
      */
     function _mint(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
-        account = mappedAddress(account);
+        account = getMappedAddress(account);
 
         _beforeTokenTransfer(address(0), account, amount);
 
@@ -433,7 +433,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
      */
     function _burn(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: burn from the zero address");
-        account = mappedAddress(account);
+        account = getMappedAddress(account);
 
         _beforeTokenTransfer(account, address(0), amount);
 
@@ -567,7 +567,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         return pendingRequestTarget[_account].at(_index);
     }
 
-    function requestTargets(address _account)
+    function getRequestTargets(address _account)
         public
         view
         override
