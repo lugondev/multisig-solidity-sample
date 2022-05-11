@@ -107,8 +107,10 @@ contract BAMtoken is MERC20Snapshot {
 
     function bridgeIn(IBridgeMERC20 _bridgeToken, bytes32 _id) public {
         address account = _bridgeToken.getBridgeOwner(_id);
+
+        require(_msgSender() == account, "invalid caller");
         require(
-            _bridgeToken.isPendingBridge(_id) && account != address(0),
+            _bridgeToken.isPendingBridge(_id),
             "invalid id bridge"
         );
 

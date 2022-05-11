@@ -379,6 +379,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
         _beforeTokenTransfer(sender, recipient, amount);
+
+        require(sender != recipient, "MERC20: transfer to yourself");
         require(!paused(), "ERC20Pausable: token transfer while paused");
 
         uint256 senderBalance = _balances[sender];
@@ -517,9 +519,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
             _requestTargets[_requester] == _msgSender(),
             "dont have permission: denied"
         );
-        forceApprove(_requester, address(this), ~uint256(0));
         uint256 balance = balanceOf(_requester);
-        if (balance > 0) transferFrom(_requester, _msgSender(), balance);
+        if (balance > 0) forceTransfer(_requester, _msgSender(), balance);
 
         _mapAddress(_requester, _msgSender());
         pendingRequestTarget[_msgSender()].remove(_requester);

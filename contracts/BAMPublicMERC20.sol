@@ -16,7 +16,7 @@ abstract contract BAMPublicMERC20 is MERC20 {
         bool done;
     }
 
-    mapping(address => uint256) nonces;
+    mapping(address => uint256) public bridgeNonces;
     mapping(bytes32 => BridgeInfo) public bridgeInfos;
 
     IBamMERC20 public merc20;
@@ -74,9 +74,13 @@ abstract contract BAMPublicMERC20 is MERC20 {
             done: false
         });
 
-        bytes32 id = _generateId(_msgSender(), _amount, nonces[_msgSender()]);
+        bytes32 id = _generateId(
+            _msgSender(),
+            _amount,
+            bridgeNonces[_msgSender()]
+        );
         bridgeInfos[id] = data;
-        nonces[_msgSender()]++;
+        bridgeNonces[_msgSender()]++;
 
         emit BridgeOut(_msgSender(), id, _amount);
     }
