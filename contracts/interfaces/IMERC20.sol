@@ -5,26 +5,44 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 interface IMERC20 is IERC20Metadata {
-    function getMappedAddress(address account) external view returns (address);
+    function getTargetOfAddress(address _account) external view returns (address);
 
-    function getRequestTargets(address _token) external view returns (address);
+    function getCurrentRequestMapping(address _account)
+        external
+        view
+        returns (address);
 
-    function mint(address _address, uint256 _amount) external;
+    function acceptMappingAddress(address _requester) external;
 
-    function burn(uint256 _amount) external;
+    function rejectMappedAddress(address _mapped) external;
 
-    function acceptMapAddress(address _requester) external;
+    function requestMappingToTarget(address _target) external returns (bool);
 
-    function requestTarget(address _target) external returns (bool);
+    function unmappingAddress() external;
 
-    function unmapAddress() external;
+    function cancelPendingMapping() external;
 
-    function countPendingRequestTarget(address _account)
+    function isTargetMappingAddress(address _account)
+        external
+        view
+        returns (bool);
+
+    function countPendingRequestMapping(address _account)
         external
         view
         returns (uint256);
 
-    function getPendingRequestTargetByIndex(address _account, uint256 _index)
+    function countMappedAddresses(address _account)
+        external
+        view
+        returns (uint256);
+
+    function getPendingRequestMappingByIndex(address _account, uint256 _index)
+        external
+        view
+        returns (address);
+
+    function getMappedAddressByIndex(address _account, uint256 _index)
         external
         view
         returns (address);

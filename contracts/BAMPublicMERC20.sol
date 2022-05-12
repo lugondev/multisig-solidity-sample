@@ -2,11 +2,10 @@
 
 pragma solidity ^0.8.3;
 
-import "./MERC20.sol";
-import "./interfaces/IBamMERC20.sol";
+import "./MERC20Snapshot.sol";
 import "./interfaces/IAM.sol";
 
-abstract contract BAMPublicMERC20 is MERC20 {
+contract BAMPublicMERC20 is MERC20Snapshot {
     event BridgeOut(address indexed account, bytes32 id, uint256 amount);
     event CancelBridge(address indexed account, bytes32 id);
     event ApproveBridge(address indexed account, bytes32 id);
@@ -19,18 +18,26 @@ abstract contract BAMPublicMERC20 is MERC20 {
     mapping(address => uint256) public bridgeNonces;
     mapping(bytes32 => BridgeInfo) public bridgeInfos;
 
-    IBamMERC20 public merc20;
+    address public merc20;
     IAM public iam;
 
-    function initialize(IBamMERC20 _merc20, address _iam) public initializer {
-        __MERC20_init(merc20.name(), _merc20.symbol());
+    function initialize(
+        string memory _name,
+        string memory _symbol,
+        address _iam,
+        address _merc20
+    ) public initializer {
+        __MERC20_init(_name, _symbol);
+        __Ownable_init();
+        __Pausable_init_unchained();
+
         merc20 = _merc20;
         iam = IAM(_iam);
     }
 
     modifier rejectBlacklist() {
         require(
-            !iam.blacklists(address(this), msg.sender),
+            !iam.isBlacklist(address(this), msg.sender),
             "you are in blacklist"
         );
         _;

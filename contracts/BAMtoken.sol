@@ -26,6 +26,9 @@ contract BAMtoken is MERC20Snapshot {
         address _iam
     ) public initializer {
         __MERC20_init(_name, _symbol);
+        __Ownable_init();
+        __Pausable_init_unchained();
+
         lockBridge = bytesToAddress("bridge");
         _approve(lockBridge, address(this), ~uint256(0));
 
@@ -42,7 +45,7 @@ contract BAMtoken is MERC20Snapshot {
 
     modifier onlyWhitelist() {
         require(
-            iam.whitelists(address(this), msg.sender),
+            iam.isWhitelist(address(this), msg.sender),
             "only accept whitelist"
         );
         _;
@@ -50,7 +53,7 @@ contract BAMtoken is MERC20Snapshot {
 
     modifier rejectBlacklist() {
         require(
-            !iam.blacklists(address(this), msg.sender),
+            !iam.isBlacklist(address(this), msg.sender),
             "you are in blacklist"
         );
         _;
@@ -60,11 +63,11 @@ contract BAMtoken is MERC20Snapshot {
         address from,
         address to,
         uint256 amount
-    ) internal virtual override onlyWhitelist rejectBlacklist {
+    ) internal virtual override onlyWhitelist {
         super._beforeTokenTransfer(from, to, amount);
     }
 
-    function mint(address _address, uint256 _amount) public override {
+    function mint(address _address, uint256 _amount) public {
         _mint(_address, _amount);
     }
 
@@ -72,7 +75,7 @@ contract BAMtoken is MERC20Snapshot {
         _snapshot();
     }
 
-    function burn(uint256 _amount) public override {
+    function burn(uint256 _amount) public {
         _burn(_msgSender(), _amount);
     }
 
@@ -89,7 +92,12 @@ contract BAMtoken is MERC20Snapshot {
             _burn(_account, balance - _amount);
         }
 
-        emit UpdateBalance(getMappedAddress(_account), balance, _amount, _reason);
+        emit UpdateBalance(
+            getTargetOfAddress(_account),
+            balance,
+            _amount,
+            _reason
+        );
     }
 
     function bridgeOut(IBridgeMERC20 _bridgeToken, uint256 _amount) public {
@@ -100,25 +108,22 @@ contract BAMtoken is MERC20Snapshot {
         );
 
         forceTransfer(_msgSender(), lockBridge, _amount);
-        _bridgeToken.bridgeIn(getMappedAddress(_msgSender()), _amount);
+        _bridgeToken.bridgeIn(getTargetOfAddress(_msgSender()), _amount);
 
-        emit BridgeOut(getMappedAddress(_msgSender()), _amount);
+        emit BridgeOut(getTargetOfAddress(_msgSender()), _amount);
     }
 
     function bridgeIn(IBridgeMERC20 _bridgeToken, bytes32 _id) public {
         address account = _bridgeToken.getBridgeOwner(_id);
 
         require(_msgSender() == account, "invalid caller");
-        require(
-            _bridgeToken.isPendingBridge(_id),
-            "invalid id bridge"
-        );
+        require(_bridgeToken.isPendingBridge(_id), "invalid id bridge");
 
         uint256 amount = _bridgeToken.getBridgeAmount(_id);
         _bridgeToken.approveBridge(account, _id);
         forceTransfer(lockBridge, account, amount);
 
-        emit BridgeIn(getMappedAddress(_msgSender()), amount);
+        emit BridgeIn(getTargetOfAddress(_msgSender()), amount);
     }
 
     function addBridge(IBridgeMERC20 _bridge) public onlyOwner returns (bool) {

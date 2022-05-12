@@ -3,12 +3,12 @@
 pragma solidity ^0.8.3;
 
 interface IAM {
-    function blacklists(address token, address user)
+    function isBlacklist(address token, address user)
         external
         view
         returns (bool);
 
-    function whitelists(address token, address user)
+    function isWhitelist(address token, address user)
         external
         view
         returns (bool);

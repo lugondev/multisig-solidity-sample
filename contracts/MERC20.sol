@@ -5,21 +5,24 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+
 import "./interfaces/IMERC20.sol";
 
 abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    event CancelMappingAddress(address indexed from, address target);
+    event RequestMappingAddress(address indexed from, address target);
+    event AcceptMappingAddress(address indexed from, address target);
     event MapAddress(address indexed from, address target);
     event UnMapAddress(address indexed from, address target);
 
-    mapping(address => address) private mapAddresses;
-    mapping(address => EnumerableSet.AddressSet) targetMapAddress;
+    mapping(address => address) private _targets;
+    mapping(address => EnumerableSet.AddressSet) _mappedAddresses;
 
-    mapping(address => address) _requestTargets;
-    mapping(address => EnumerableSet.AddressSet) pendingRequestTarget;
+    mapping(address => address) _currentRequestMapping;
+    mapping(address => EnumerableSet.AddressSet) _pendingRequestMapping;
 
     mapping(address => uint256) private _balances;
 
@@ -96,22 +99,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         override
         returns (uint256)
     {
-        return _balances[getMappedAddress(account)];
-    }
-
-    /**
-     * @dev address after mapping
-     */
-    function getMappedAddress(address account)
-        public
-        view
-        override
-        returns (address)
-    {
-        return
-            mapAddresses[account] != address(0)
-                ? mapAddresses[account]
-                : account;
+        return _balances[getTargetOfAddress(account)];
     }
 
     /**
@@ -121,23 +109,13 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         internal
         returns (bool)
     {
-        require(mapAddresses[account] == address(0), "already mapped");
-        require(mapAddresses[target] != account, "loop mapping denied");
-        mapAddresses[account] = target;
-        targetMapAddress[target].add(account);
+        require(getTargetOfAddress(target) != account, "loop mapping denied");
 
-        if (isTargetMapAddress(account)) {
-            for (
-                uint256 index = 0;
-                index < targetMapAddress[account].length() - 1;
-                index++
-            ) {
-                address childAddress = targetMapAddress[target].at(index);
-                mapAddresses[childAddress] = target;
-                emit UnMapAddress(childAddress, account);
-                emit MapAddress(childAddress, target);
-            }
-        }
+        _targets[account] = target;
+        _mappedAddresses[target].add(account);
+
+        delete _currentRequestMapping[account];
+        _pendingRequestMapping[target].remove(account);
 
         emit MapAddress(account, target);
         return true;
@@ -146,45 +124,21 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     /**
      * @dev unmap address's balance
      */
-    function _unmapAddress(address account) internal returns (bool) {
-        require(mapAddresses[account] != address(0), "not mapped");
-        address target = mapAddresses[account];
-        require(targetMapAddress[target].contains(account));
+    function _rejectAddress(address targetAddress, address mappedAddress)
+        internal
+        returns (bool)
+    {
+        require(
+            _mappedAddresses[targetAddress].contains(mappedAddress) &&
+                _targets[mappedAddress] != targetAddress,
+            "not mapped address"
+        );
 
-        mapAddresses[account] = address(0);
-        targetMapAddress[target].remove(account);
+        delete _targets[mappedAddress];
+        _mappedAddresses[targetAddress].remove(mappedAddress);
 
-        emit UnMapAddress(account, target);
+        emit UnMapAddress(mappedAddress, targetAddress);
         return true;
-    }
-
-    /**
-     * @dev count total addresses is targeting to account
-     */
-    function countTargetMapAddress(address account)
-        public
-        view
-        returns (uint256)
-    {
-        return targetMapAddress[account].length();
-    }
-
-    /**
-     * @dev get addresses is targeting to account by index
-     */
-    function getTargetMapAddressByIndex(address account, uint256 index)
-        public
-        view
-        returns (address)
-    {
-        return targetMapAddress[account].at(index);
-    }
-
-    /**
-     * @dev status targeting address
-     */
-    function isTargetMapAddress(address account) public view returns (bool) {
-        return countTargetMapAddress(account) > 0;
     }
 
     /**
@@ -201,8 +155,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         override
         returns (bool)
     {
-        address account = getMappedAddress(_msgSender());
-        recipient = getMappedAddress(recipient);
+        address account = getTargetOfAddress(_msgSender());
+        recipient = getTargetOfAddress(recipient);
         _transfer(account, recipient, amount);
         return true;
     }
@@ -217,8 +171,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         override
         returns (uint256)
     {
-        spender = getMappedAddress(spender);
-        owner = getMappedAddress(owner);
+        spender = getTargetOfAddress(spender);
+        owner = getTargetOfAddress(owner);
         return _allowances[owner][spender];
     }
 
@@ -235,8 +189,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         override
         returns (bool)
     {
-        address account = getMappedAddress(_msgSender());
-        spender = getMappedAddress(spender);
+        address account = getTargetOfAddress(_msgSender());
+        spender = getTargetOfAddress(spender);
         _approve(account, spender, amount);
         return true;
     }
@@ -283,10 +237,10 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         address recipient,
         uint256 amount
     ) public virtual override returns (bool) {
-        sender = getMappedAddress(sender);
-        recipient = getMappedAddress(recipient);
+        sender = getTargetOfAddress(sender);
+        recipient = getTargetOfAddress(recipient);
         _transfer(sender, recipient, amount);
-        address account = getMappedAddress(_msgSender());
+        address account = getTargetOfAddress(_msgSender());
 
         uint256 currentAllowance = _allowances[sender][account];
         require(
@@ -317,8 +271,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         virtual
         returns (bool)
     {
-        spender = getMappedAddress(spender);
-        address account = getMappedAddress(_msgSender());
+        spender = getTargetOfAddress(spender);
+        address account = getTargetOfAddress(_msgSender());
         _approve(account, spender, _allowances[account][spender] + addedValue);
         return true;
     }
@@ -342,8 +296,8 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         virtual
         returns (bool)
     {
-        spender = getMappedAddress(spender);
-        address account = getMappedAddress(_msgSender());
+        spender = getTargetOfAddress(spender);
+        address account = getTargetOfAddress(_msgSender());
         uint256 currentAllowance = _allowances[account][spender];
         require(
             currentAllowance >= subtractedValue,
@@ -409,7 +363,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
      */
     function _mint(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
-        account = getMappedAddress(account);
+        account = getTargetOfAddress(account);
 
         _beforeTokenTransfer(address(0), account, amount);
 
@@ -433,7 +387,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
      */
     function _burn(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: burn from the zero address");
-        account = getMappedAddress(account);
+        account = getTargetOfAddress(account);
 
         _beforeTokenTransfer(account, address(0), amount);
 
@@ -514,65 +468,135 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
         uint256 amount
     ) internal virtual {}
 
-    function acceptMapAddress(address _requester) public override {
+    function acceptMappingAddress(address _requester) public override {
         require(
-            _requestTargets[_requester] == _msgSender(),
+            _currentRequestMapping[_requester] == _msgSender(),
             "dont have permission: denied"
         );
+        require(
+            _currentRequestMapping[_msgSender()] == address(0),
+            "cancel request before accept"
+        );
+
         uint256 balance = balanceOf(_requester);
         if (balance > 0) forceTransfer(_requester, _msgSender(), balance);
 
         _mapAddress(_requester, _msgSender());
-        pendingRequestTarget[_msgSender()].remove(_requester);
     }
 
-    function requestTarget(address _target) public override returns (bool) {
-        if (_target == address(0)) {
-            require(
-                _requestTargets[_msgSender()] != address(0),
-                "cannot cancel request"
-            );
-            _requestTargets[_msgSender()] = address(0);
-            return true;
-        }
+    function requestMappingToTarget(address _target)
+        public
+        override
+        returns (bool)
+    {
         require(
-            _requestTargets[_msgSender()] == address(0),
-            "wait to target accept"
+            _currentRequestMapping[_msgSender()] == address(0),
+            "old request has not been accepted"
         );
-        _requestTargets[_msgSender()] = _target;
-        pendingRequestTarget[_target].add(_msgSender());
+
+        require(
+            !isMappedAddress(_target),
+            "your target is not ready to mapped"
+        );
+
+        _currentRequestMapping[_msgSender()] = _target;
+        _pendingRequestMapping[_target].add(_msgSender());
 
         return true;
     }
 
-    function unmapAddress() public override {
-        _unmapAddress(_msgSender());
+    function cancelPendingMapping() public override {
+        address currentRequestMapping = _currentRequestMapping[_msgSender()];
+        require(currentRequestMapping != address(0), "dont have any request");
+
+        _pendingRequestMapping[currentRequestMapping].remove(_msgSender());
+        delete _currentRequestMapping[_msgSender()];
     }
 
-    function countPendingRequestTarget(address _account)
+    function unmappingAddress() public override {
+        _rejectAddress(_targets[_msgSender()], _msgSender());
+    }
+
+    function rejectMappedAddress(address _mappedAddress) public override {
+        _rejectAddress(_msgSender(), _mappedAddress);
+    }
+
+    function countPendingRequestMapping(address _account)
         public
         view
         override
         returns (uint256)
     {
-        return pendingRequestTarget[_account].length();
+        return _pendingRequestMapping[_account].length();
     }
 
-    function getPendingRequestTargetByIndex(address _account, uint256 _index)
+    function getPendingRequestMappingByIndex(address _account, uint256 _index)
         public
         view
         override
         returns (address)
     {
-        return pendingRequestTarget[_account].at(_index);
+        return _pendingRequestMapping[_account].at(_index);
     }
 
-    function getRequestTargets(address _account)
+    function getCurrentRequestMapping(address _account)
         public
         view
         override
         returns (address)
     {
-        return _requestTargets[_account];
+        return _currentRequestMapping[_account];
+    }
+
+    /**
+     * @dev count total addresses is targeting to account
+     */
+    function countMappedAddresses(address account)
+        public
+        view
+        returns (uint256)
+    {
+        return _mappedAddresses[account].length();
+    }
+
+    /**
+     * @dev get addresses is targeting to account by index
+     */
+    function getMappedAddressByIndex(address account, uint256 index)
+        public
+        view
+        returns (address)
+    {
+        return _mappedAddresses[account].at(index);
+    }
+
+    /**
+     * @dev status targeting address
+     */
+    function isTargetMappingAddress(address account)
+        public
+        view
+        returns (bool)
+    {
+        return countMappedAddresses(account) > 0;
+    }
+
+    /**
+     * @dev status targeting address
+     */
+    function isMappedAddress(address account) public view returns (bool) {
+        return getTargetOfAddress(account) != account;
+    }
+
+    /**
+     * @dev address after mapping
+     */
+    function getTargetOfAddress(address account)
+        public
+        view
+        override
+        returns (address)
+    {
+        return _targets[account] != address(0) ? _targets[account] : account;
     }
 }
