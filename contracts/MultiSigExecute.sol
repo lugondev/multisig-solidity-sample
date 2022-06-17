@@ -112,6 +112,8 @@ contract MultiSigExecute {
             _weight > 1 && _weight <= totalOwner(),
             "invalid number of required confirmations"
         );
+        
+        weight = _weight;
         emit UpdateWeight(_weight);
     }
 
