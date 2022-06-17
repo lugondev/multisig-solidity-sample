@@ -112,7 +112,7 @@ contract MultiSigExecute {
             _weight > 1 && _weight <= totalOwner(),
             "invalid number of required confirmations"
         );
-        
+
         weight = _weight;
         emit UpdateWeight(_weight);
     }
@@ -240,7 +240,6 @@ contract MultiSigExecute {
     function executeTransaction(uint256 _id)
         public
         isCurrentTransaction(_id)
-        onlyOwner
     {
         Transaction memory transactionData = transactions[_id];
         require(
