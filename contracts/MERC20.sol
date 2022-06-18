@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-
 import "./interfaces/IMERC20.sol";
 
 abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
@@ -599,4 +598,5 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     {
         return _targets[account] != address(0) ? _targets[account] : account;
     }
+    
 }

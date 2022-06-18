@@ -15,6 +15,7 @@ contract BAMtoken is MERC20Snapshot {
     );
     event BridgeOut(address indexed account, uint256 amount);
     event BridgeIn(address indexed account, uint256 amount);
+    event PrivateTransfer(uint256 timestamp);
 
     IAM public iam;
     address public lockBridge;
@@ -63,7 +64,7 @@ contract BAMtoken is MERC20Snapshot {
         address from,
         address to,
         uint256 amount
-    ) internal virtual override onlyWhitelist {
+    ) internal virtual override onlyWhitelist whenNotPaused {
         super._beforeTokenTransfer(from, to, amount);
     }
 
@@ -100,7 +101,10 @@ contract BAMtoken is MERC20Snapshot {
         );
     }
 
-    function bridgeOut(IBridgeMERC20 _bridgeToken, uint256 _amount) public {
+    function bridgeOut(IBridgeMERC20 _bridgeToken, uint256 _amount)
+        public
+        whenNotPaused
+    {
         require(_amount > 0, "amount must be greater than 0");
         require(
             _amount >= balanceOf(_msgSender()),
@@ -113,7 +117,10 @@ contract BAMtoken is MERC20Snapshot {
         emit BridgeOut(getTargetOfAddress(_msgSender()), _amount);
     }
 
-    function bridgeIn(IBridgeMERC20 _bridgeToken, bytes32 _id) public {
+    function bridgeIn(IBridgeMERC20 _bridgeToken, bytes32 _id)
+        public
+        whenNotPaused
+    {
         address account = _bridgeToken.getBridgeOwner(_id);
 
         require(_msgSender() == account, "invalid caller");
@@ -161,10 +168,12 @@ contract BAMtoken is MERC20Snapshot {
         return _getCurrentSnapshotId();
     }
 
-    function privTransfer(address recipient, uint256 amount)
-        public
-        returns (bool)
-    {
+    function privTransfer(
+        address recipient,
+        uint256 amount,
+        uint256 timestamp
+    ) public returns (bool) {
+        emit PrivateTransfer(timestamp);
         return transfer(recipient, amount);
     }
 }

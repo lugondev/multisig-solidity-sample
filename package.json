@@ -41,6 +41,7 @@
         "@openzeppelin/contracts-upgradeable": "^4.3.2",
         "@uniswap/v2-core": "^1.0.1",
         "chai-as-promised": "^7.1.1",
-        "ethereumjs-util": "^7.0.10"
+        "ethereumjs-util": "^7.0.10",
+        "truffle": "^5.5.18"
     }
 }

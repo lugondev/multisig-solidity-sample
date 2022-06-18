@@ -136,9 +136,10 @@ contract MultiSigExecute {
     function getPendingTxByIndex(uint256 _index)
         public
         view
-        returns (Transaction memory)
+        returns (uint256 txId, Transaction memory)
     {
-        return transactions[pendingTxs.at(_index)];
+        txId = pendingTxs.at(_index);
+        return (txId, transactions[txId]);
     }
 
     function totalExecutedTxs() public view returns (uint256) {
@@ -148,9 +149,10 @@ contract MultiSigExecute {
     function getExecutedTxByIndex(uint256 _index)
         public
         view
-        returns (Transaction memory)
+        returns (uint256 txId, Transaction memory)
     {
-        return transactions[executedTxs.at(_index)];
+        txId = executedTxs.at(_index);
+        return (txId, transactions[txId]);
     }
 
     function totalCancelTxs() public view returns (uint256) {
@@ -160,9 +162,10 @@ contract MultiSigExecute {
     function getCancelTxByIndex(uint256 _index)
         public
         view
-        returns (Transaction memory)
+        returns (uint256 txId, Transaction memory)
     {
-        return transactions[cancelTxs.at(_index)];
+        txId = cancelTxs.at(_index);
+        return (txId, transactions[txId]);
     }
 
     function currentTransactionId() public view returns (uint256) {
@@ -237,10 +240,7 @@ contract MultiSigExecute {
         emit CancelTransaction(_id);
     }
 
-    function executeTransaction(uint256 _id)
-        public
-        isCurrentTransaction(_id)
-    {
+    function executeTransaction(uint256 _id) public isCurrentTransaction(_id) {
         Transaction memory transactionData = transactions[_id];
         require(
             isOwner(transactionData.submitter),
