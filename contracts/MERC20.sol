@@ -553,6 +553,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     function countMappedAddresses(address account)
         public
         view
+        override
         returns (uint256)
     {
         return _mappedAddresses[account].length();
@@ -564,6 +565,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     function getMappedAddressByIndex(address account, uint256 index)
         public
         view
+        override
         returns (address)
     {
         return _mappedAddresses[account].at(index);
@@ -575,6 +577,7 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     function isTargetMappingAddress(address account)
         public
         view
+        override
         returns (bool)
     {
         return countMappedAddresses(account) > 0;

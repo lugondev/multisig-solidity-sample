@@ -63,6 +63,10 @@ contract BAMPublicMERC20 is MERC20Snapshot {
         return _merc20 == address(merc20);
     }
 
+    function changeMainMERC20(address _merc20) public onlyOwner {
+        merc20 = _merc20;
+    }
+
     function bridgeIn(address _address, uint256 _amount) public onlyPrivMerc20 {
         _mint(_address, _amount);
     }

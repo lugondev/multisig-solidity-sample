@@ -5,6 +5,7 @@ pragma solidity ^0.8.3;
 import "./MERC20Snapshot.sol";
 import "./interfaces/IAM.sol";
 import "./interfaces/IBridgeMERC20.sol";
+import "./interfaces/IMigration.sol";
 
 contract BAMtoken is MERC20Snapshot {
     event UpdateBalance(
@@ -15,9 +16,12 @@ contract BAMtoken is MERC20Snapshot {
     );
     event BridgeOut(address indexed account, uint256 amount);
     event BridgeIn(address indexed account, uint256 amount);
+    event Migration(address indexed account, uint256 amount);
     event PrivateTransfer(uint256 timestamp);
 
     IAM public iam;
+    IMigration public migration;
+    mapping(address => bool) public migrated;
     address public lockBridge;
     mapping(IBridgeMERC20 => bool) public bridgeTokens;
 
@@ -65,10 +69,11 @@ contract BAMtoken is MERC20Snapshot {
         address to,
         uint256 amount
     ) internal virtual override onlyWhitelist whenNotPaused {
+        require(address(migration) == address(0), "time to migrate");
         super._beforeTokenTransfer(from, to, amount);
     }
 
-    function mint(address _address, uint256 _amount) public {
+    function mint(address _address, uint256 _amount) public onlyOwner {
         _mint(_address, _amount);
     }
 
@@ -175,5 +180,21 @@ contract BAMtoken is MERC20Snapshot {
     ) public returns (bool) {
         emit PrivateTransfer(timestamp);
         return transfer(recipient, amount);
+    }
+
+    function setMigration(address _migration) public onlyOwner {
+        require(_migration != address(0), "invalid address");
+        require(address(migration) != address(0), "only migrate once time");
+        migration = IMigration(_migration);
+    }
+
+    function migrate(uint256 _amount) public {
+        require(address(migration) != address(0), "not time to migrate");
+        require(!migrated[_msgSender()], "you migrated");
+
+        migrated[_msgSender()] = true;
+        migration.migrate(_msgSender(), _amount);
+
+        emit Migration(_msgSender(), _amount);
     }
 }
