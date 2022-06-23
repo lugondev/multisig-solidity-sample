@@ -2,14 +2,12 @@
 
 pragma solidity ^0.8.3;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "./interfaces/IMERC20.sol";
+import "./MultiOwners.sol";
 
-abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
-    using EnumerableSet for EnumerableSet.AddressSet;
+abstract contract MERC20 is MultiOwners, IMERC20, PausableUpgradeable {
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     event CancelMappingAddress(address indexed from, address target);
     event RequestMappingAddress(address indexed from, address target);
@@ -18,10 +16,10 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     event UnMapAddress(address indexed from, address target);
 
     mapping(address => address) private _targets;
-    mapping(address => EnumerableSet.AddressSet) _mappedAddresses;
+    mapping(address => EnumerableSetUpgradeable.AddressSet) _mappedAddresses;
 
     mapping(address => address) _currentRequestMapping;
-    mapping(address => EnumerableSet.AddressSet) _pendingRequestMapping;
+    mapping(address => EnumerableSetUpgradeable.AddressSet) _pendingRequestMapping;
 
     mapping(address => uint256) private _balances;
 
@@ -47,6 +45,9 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     {
         _name = name_;
         _symbol = symbol_;
+
+        __Ownable_init();
+        __Pausable_init();
     }
 
     /**
@@ -601,5 +602,4 @@ abstract contract MERC20 is OwnableUpgradeable, IMERC20, PausableUpgradeable {
     {
         return _targets[account] != address(0) ? _targets[account] : account;
     }
-    
 }

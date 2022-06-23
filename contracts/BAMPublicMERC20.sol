@@ -28,8 +28,6 @@ contract BAMPublicMERC20 is MERC20Snapshot {
         address _merc20
     ) public initializer {
         __MERC20_init(_name, _symbol);
-        __Ownable_init();
-        __Pausable_init_unchained();
 
         merc20 = _merc20;
         iam = IAM(_iam);

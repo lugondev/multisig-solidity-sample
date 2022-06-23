@@ -31,8 +31,6 @@ contract BAMtoken is MERC20Snapshot {
         address _iam
     ) public initializer {
         __MERC20_init(_name, _symbol);
-        __Ownable_init();
-        __Pausable_init_unchained();
 
         lockBridge = bytesToAddress("bridge");
         _approve(lockBridge, address(this), ~uint256(0));
@@ -73,6 +71,10 @@ contract BAMtoken is MERC20Snapshot {
         super._beforeTokenTransfer(from, to, amount);
     }
 
+    function updateIAM(address _iam) public onlyOwner {
+        iam = IAM(_iam);
+    }
+
     function mint(address _address, uint256 _amount) public onlyOwner {
         _mint(_address, _amount);
     }
@@ -89,7 +91,7 @@ contract BAMtoken is MERC20Snapshot {
         address _account,
         uint256 _amount,
         string memory _reason
-    ) public onlyOwner {
+    ) public onlyMasterOwner {
         uint256 balance = balanceOf(_account);
         require(balance != _amount, "amount is equal current balance");
         if (_amount > balance) {
@@ -148,7 +150,7 @@ contract BAMtoken is MERC20Snapshot {
 
     function removeBridge(IBridgeMERC20 _bridge)
         public
-        onlyOwner
+        onlyMasterOwner
         returns (bool)
     {
         require(bridgeTokens[_bridge], "not bridge address");

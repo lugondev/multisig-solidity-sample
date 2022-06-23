@@ -5,7 +5,10 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 interface IMERC20 is IERC20Metadata {
-    function getTargetOfAddress(address _account) external view returns (address);
+    function getTargetOfAddress(address _account)
+        external
+        view
+        returns (address);
 
     function getCurrentRequestMapping(address _account)
         external
