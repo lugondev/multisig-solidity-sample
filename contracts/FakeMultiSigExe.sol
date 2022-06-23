@@ -1,0 +1,233 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.3;
+
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract FakeMultiSigExe {
+    using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.UintSet;
+    using Counters for Counters.Counter;
+
+    event Deposit(address indexed _sender, uint256 _amount, uint256 _balance);
+    event ExecuteTransaction(uint256 indexed _id);
+    event CancelTransaction(uint256 indexed _id);
+    event SubmitTransaction(uint256 indexed _id, address _target, bytes _data);
+    event RevokeTransaction(uint256 indexed _id);
+    event ConfirmTransaction(uint256 indexed _id);
+    event RevokeOwner(address indexed _account);
+    event AddOwner(address indexed _account);
+    event UpdateWeight(uint256 _newWeight);
+
+    EnumerableSet.AddressSet owners;
+    EnumerableSet.UintSet pendingTxs;
+    EnumerableSet.UintSet executedTxs;
+    EnumerableSet.UintSet cancelTxs;
+
+    uint256 public weight;
+    Counters.Counter private _transactionId;
+
+    struct Transaction {
+        address submitter;
+        address target;
+        bytes data;
+        uint256 confirmations;
+    }
+
+    mapping(uint256 => Transaction) public transactions;
+
+    mapping(uint256 => mapping(address => bool)) public isConfirmed;
+
+    constructor() {
+        weight = 1;
+        owners.add(msg.sender);
+    }
+
+    modifier onlyOwner() {
+        require(isOwner(msg.sender), "not owner");
+        _;
+    }
+
+    modifier callYourSelf() {
+        require(msg.sender == address(this), "only call yourself");
+        _;
+    }
+
+    modifier isCurrentTransaction(uint256 _id) {
+        require(
+            _id > 0 &&
+                _id <= _transactionId.current() &&
+                pendingTxs.contains(_id),
+            "invalid transaction id"
+        );
+        _;
+    }
+
+    receive() external payable {
+        emit Deposit(msg.sender, msg.value, address(this).balance);
+    }
+
+    function addOwner(address _account) public callYourSelf {
+        require(!isOwner(_account), "Owner is exists.");
+        owners.add(_account);
+
+        emit AddOwner(_account);
+    }
+
+    function removeOwner(address _account) public callYourSelf {
+        require(isOwner(_account), "Owner is not exists.");
+        owners.remove(_account);
+
+        emit RevokeOwner(_account);
+    }
+
+    function updateWeight(uint256 _weight) public callYourSelf {
+        weight = _weight;
+        emit UpdateWeight(_weight);
+    }
+
+    function isOwner(address _user) public view returns (bool) {
+        return owners.contains(_user);
+    }
+
+    function totalOwner() public view returns (uint256) {
+        return owners.length();
+    }
+
+    function getOwnerByIndex(uint256 _index) public view returns (address) {
+        return owners.at(_index);
+    }
+
+    function totalPendingTxs() public view returns (uint256) {
+        return pendingTxs.length();
+    }
+
+    function getPendingTxByIndex(uint256 _index)
+        public
+        view
+        returns (uint256 txId, Transaction memory)
+    {
+        txId = pendingTxs.at(_index);
+        return (txId, transactions[txId]);
+    }
+
+    function totalExecutedTxs() public view returns (uint256) {
+        return executedTxs.length();
+    }
+
+    function getExecutedTxByIndex(uint256 _index)
+        public
+        view
+        returns (uint256 txId, Transaction memory)
+    {
+        txId = executedTxs.at(_index);
+        return (txId, transactions[txId]);
+    }
+
+    function totalCancelTxs() public view returns (uint256) {
+        return cancelTxs.length();
+    }
+
+    function getCancelTxByIndex(uint256 _index)
+        public
+        view
+        returns (uint256 txId, Transaction memory)
+    {
+        txId = cancelTxs.at(_index);
+        return (txId, transactions[txId]);
+    }
+
+    function currentTransactionId() public view returns (uint256) {
+        return _transactionId.current();
+    }
+
+    function submitTransaction(address _target, bytes memory _data)
+        public
+        onlyOwner
+    {
+        _transactionId.increment();
+        transactions[currentTransactionId()] = Transaction({
+            submitter: msg.sender,
+            target: _target,
+            data: _data,
+            confirmations: 0
+        });
+        pendingTxs.add(currentTransactionId());
+
+        emit SubmitTransaction(currentTransactionId(), _target, _data);
+    }
+
+    function revokeTransaction(uint256 _id)
+        public
+        isCurrentTransaction(_id)
+        onlyOwner
+    {
+        require(isConfirmed[_id][msg.sender], "must confirm first");
+        Transaction storage transactionData = transactions[_id];
+        transactionData.confirmations--;
+        isConfirmed[_id][msg.sender] = false;
+
+        emit RevokeTransaction(_id);
+    }
+
+    function confirmTransaction(uint256 _id)
+        public
+        isCurrentTransaction(_id)
+        onlyOwner
+    {
+        require(
+            !isConfirmed[_id][msg.sender],
+            "you confirmed this transaction"
+        );
+        Transaction storage transactionData = transactions[_id];
+        transactionData.confirmations++;
+        isConfirmed[_id][msg.sender] = true;
+
+        emit ConfirmTransaction(_id);
+    }
+
+    function cancelTransaction(uint256 _id)
+        public
+        isCurrentTransaction(_id)
+        onlyOwner
+    {
+        Transaction memory transactionData = transactions[_id];
+        if (isOwner(transactionData.submitter)) {
+            require(
+                transactionData.submitter == msg.sender,
+                "invalid submitter"
+            );
+            require(
+                transactionData.confirmations == 0,
+                "invalid transaction status"
+            );
+        }
+
+        pendingTxs.remove(_id);
+        cancelTxs.add(_id);
+
+        emit CancelTransaction(_id);
+    }
+
+    function executeTransaction(uint256 _id) public isCurrentTransaction(_id) {
+        Transaction memory transactionData = transactions[_id];
+        require(
+            isOwner(transactionData.submitter),
+            "summiter is revoked owner"
+        );
+        require(
+            transactionData.confirmations >= weight,
+            "not enough confirmations"
+        );
+
+        pendingTxs.remove(_id);
+
+        (bool success, ) = transactionData.target.call(transactionData.data);
+        require(success, "execute: failed!!!");
+
+        executedTxs.add(_id);
+
+        emit ExecuteTransaction(_id);
+    }
+}
