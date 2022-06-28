@@ -87,7 +87,7 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
         }
     }
 
-    function changeStatusWhitelist(address _target, bool _status)
+    function setDisableWhitelist(address _target, bool _status)
         public
         onlyManager
     {

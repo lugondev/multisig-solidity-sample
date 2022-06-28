@@ -27,12 +27,18 @@ contract FakeMultiSigExe {
 
     uint256 public weight;
     Counters.Counter private _transactionId;
+    enum TxStatus {
+        PENDING,
+        SUCCESS,
+        CANCEL
+    }
 
     struct Transaction {
         address submitter;
         address target;
         bytes data;
         uint256 confirmations;
+        TxStatus status;
     }
 
     mapping(uint256 => Transaction) public transactions;
@@ -151,7 +157,8 @@ contract FakeMultiSigExe {
             submitter: msg.sender,
             target: _target,
             data: _data,
-            confirmations: 0
+            confirmations: 0,
+            status: TxStatus.PENDING
         });
         pendingTxs.add(currentTransactionId());
 
@@ -192,7 +199,7 @@ contract FakeMultiSigExe {
         isCurrentTransaction(_id)
         onlyOwner
     {
-        Transaction memory transactionData = transactions[_id];
+        Transaction storage transactionData = transactions[_id];
         if (isOwner(transactionData.submitter)) {
             require(
                 transactionData.submitter == msg.sender,
@@ -206,6 +213,7 @@ contract FakeMultiSigExe {
 
         pendingTxs.remove(_id);
         cancelTxs.add(_id);
+        transactionData.status = TxStatus.CANCEL;
 
         emit CancelTransaction(_id);
     }
@@ -227,6 +235,7 @@ contract FakeMultiSigExe {
         require(success, "execute: failed!!!");
 
         executedTxs.add(_id);
+        transactionData.status = TxStatus.SUCCESS;
 
         emit ExecuteTransaction(_id);
     }

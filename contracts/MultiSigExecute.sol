@@ -71,6 +71,11 @@ contract MultiSigExecute {
         _;
     }
 
+    modifier noPendingTx() {
+        require(totalPendingTxs() == 0, "call without any pending txs");
+        _;
+    }
+
     modifier isCurrentTransaction(uint256 _id) {
         require(
             _id > 0 &&
@@ -85,14 +90,18 @@ contract MultiSigExecute {
         emit Deposit(msg.sender, msg.value, address(this).balance);
     }
 
-    function addOwner(address _account) public callYourSelf {
+    function addOwner(address _account) public callYourSelf noPendingTx {
         require(!isOwner(_account), "Owner is exists.");
+        require(
+            (totalOwner() + 1) / 2 <= weight,
+            "Weight is too low. Increase weight first"
+        );
         owners.add(_account);
 
         emit AddOwner(_account);
     }
 
-    function removeOwner(address _account) public callYourSelf {
+    function removeOwner(address _account) public callYourSelf noPendingTx {
         require(isOwner(_account), "Owner is not exists.");
         require(
             totalOwner() > 3,
@@ -107,7 +116,7 @@ contract MultiSigExecute {
         emit RevokeOwner(_account);
     }
 
-    function updateWeight(uint256 _weight) public callYourSelf {
+    function updateWeight(uint256 _weight) public callYourSelf noPendingTx {
         require(
             _weight > 1 && _weight <= totalOwner(),
             "invalid number of required confirmations"
@@ -257,7 +266,7 @@ contract MultiSigExecute {
         require(success, "execute: failed!!!");
 
         executedTxs.add(_id);
-        
+
         emit ExecuteTransaction(_id);
     }
 }

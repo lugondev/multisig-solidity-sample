@@ -39,6 +39,14 @@ abstract contract MultiOwners is ContextUpgradeable {
         return _owners.at(index);
     }
 
+    function isOwner(address _user) public view virtual returns (bool) {
+        return _owners.contains(_user);
+    }
+
+    function totalOwner() public view virtual returns (uint256) {
+        return _owners.length();
+    }
+
     /**
      * @dev Throws if called by any account other than the owner.
      */
