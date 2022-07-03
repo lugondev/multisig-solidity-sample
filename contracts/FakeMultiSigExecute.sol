@@ -5,7 +5,7 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract FakeMultiSigExe {
+contract FakeMultiSigExecute {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.UintSet;
     using Counters for Counters.Counter;

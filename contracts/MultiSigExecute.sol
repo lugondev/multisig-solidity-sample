@@ -27,12 +27,18 @@ contract MultiSigExecute {
 
     uint256 public weight;
     Counters.Counter private _transactionId;
+    enum TxStatus {
+        PENDING,
+        SUCCESS,
+        CANCEL
+    }
 
     struct Transaction {
         address submitter;
         address target;
         bytes data;
         uint256 confirmations;
+        TxStatus status;
     }
 
     mapping(uint256 => Transaction) public transactions;
@@ -190,7 +196,8 @@ contract MultiSigExecute {
             submitter: msg.sender,
             target: _target,
             data: _data,
-            confirmations: 0
+            confirmations: 0,
+            status: TxStatus.PENDING
         });
         pendingTxs.add(currentTransactionId());
 
@@ -245,6 +252,7 @@ contract MultiSigExecute {
 
         pendingTxs.remove(_id);
         cancelTxs.add(_id);
+        transactionData.status = TxStatus.CANCEL;
 
         emit CancelTransaction(_id);
     }
@@ -266,6 +274,7 @@ contract MultiSigExecute {
         require(success, "execute: failed!!!");
 
         executedTxs.add(_id);
+        transactionData.status = TxStatus.SUCCESS;
 
         emit ExecuteTransaction(_id);
     }

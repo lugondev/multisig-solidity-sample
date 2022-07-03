@@ -17,7 +17,6 @@ contract BAMtoken is MERC20Snapshot {
     event BridgeOut(address indexed account, uint256 amount);
     event BridgeIn(address indexed account, uint256 amount);
     event Migration(address indexed account, uint256 amount);
-    event PrivateTransfer(uint256 timestamp);
 
     IAM public iam;
     IMigration public migration;
@@ -33,7 +32,6 @@ contract BAMtoken is MERC20Snapshot {
         __MERC20_init(_name, _symbol);
 
         lockBridge = bytesToAddress("bridge");
-        _approve(lockBridge, address(this), ~uint256(0));
 
         iam = IAM(_iam);
     }
@@ -173,15 +171,6 @@ contract BAMtoken is MERC20Snapshot {
 
     function getCurrentSnapshotId() public view returns (uint256) {
         return _getCurrentSnapshotId();
-    }
-
-    function privTransfer(
-        address recipient,
-        uint256 amount,
-        uint256 timestamp
-    ) public returns (bool) {
-        emit PrivateTransfer(timestamp);
-        return transfer(recipient, amount);
     }
 
     function setMigration(address _migration) public onlyOwner {
