@@ -10,11 +10,11 @@ contract ExampleToken is ERC20, Ownable {
 
     uint256 public initialSupply = 10**9 * 10**18;
 
-    constructor() ERC20("ExampleToken", "ExT") {
+    constructor(string memory name_, string memory symbol_) ERC20(name_,symbol_) {
         _mint(_msgSender(), initialSupply);
     }
 
-    function mint(uint256 _amount) external onlyOwner {
+    function mint(uint256 _amount) external {
         _mint(_msgSender(), _amount);
     }
 }

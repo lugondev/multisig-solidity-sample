@@ -76,7 +76,7 @@ contract BAMPublicMERC20 is MERC20Snapshot {
             "bridge amount exceeds balance"
         );
 
-        forceTransfer(_msgSender(), address(this), _amount);
+        _forceTransfer(_msgSender(), address(this), _amount);
         BridgeInfo memory data = BridgeInfo({
             account: _msgSender(),
             amount: _amount,

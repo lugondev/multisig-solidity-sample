@@ -9,9 +9,10 @@ import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeab
 contract AccountManagement is Initializable, AccessControlUpgradeable {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
-    event BlackList(address indexed target, address user, bool status);
-    event WhiteList(address indexed target, address user, bool status);
-    event UpdateStatus(address indexed target, bool status);
+    event BlackListUser(address indexed target, address user, bool status);
+    event WhiteListUser(address indexed target, address user, bool status);
+    event BlackListStatus(address indexed target, bool status);
+    event WhiteListStatus(address indexed target, bool status);
 
     bytes32 public constant ADMIN = keccak256("ADMIN");
     bytes32 public constant MANAGER = keccak256("MANAGER");
@@ -19,6 +20,7 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
     mapping(address => EnumerableSetUpgradeable.AddressSet) blacklists;
     mapping(address => EnumerableSetUpgradeable.AddressSet) whitelists;
     mapping(address => bool) public isDisableWhitelists;
+    mapping(address => bool) public isDisableBlacklists;
 
     function init() public initializer {
         __AccessControl_init();
@@ -41,6 +43,8 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
         view
         returns (bool)
     {
+        if (isDisableBlacklists[_target]) return false;
+        
         return blacklists[_target].contains(_user);
     }
 
@@ -66,14 +70,14 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
             } else {
                 blacklists[_target].remove(_user);
             }
-            emit BlackList(_target, _user, _status);
+            emit BlackListUser(_target, _user, _status);
         } else {
             if (_status) {
                 whitelists[_target].add(_user);
             } else {
                 whitelists[_target].remove(_user);
             }
-            emit WhiteList(_target, _user, _status);
+            emit WhiteListUser(_target, _user, _status);
         }
     }
 
@@ -93,7 +97,16 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
     {
         isDisableWhitelists[_target] = _status;
 
-        emit UpdateStatus(_target, _status);
+        emit WhiteListStatus(_target, _status);
+    }
+
+    function setDisableBlacklists(address _target, bool _status)
+        public
+        onlyManager
+    {
+        isDisableBlacklists[_target] = _status;
+
+        emit BlackListStatus(_target, _status);
     }
 
     function updateBlacklists(

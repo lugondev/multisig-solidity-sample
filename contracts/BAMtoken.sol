@@ -116,7 +116,7 @@ contract BAMtoken is MERC20Snapshot {
             "bridge amount exceeds balance"
         );
 
-        forceTransfer(_msgSender(), lockBridge, _amount);
+        _forceTransfer(_msgSender(), lockBridge, _amount);
         _bridgeToken.bridgeIn(getTargetOfAddress(_msgSender()), _amount);
 
         emit BridgeOut(getTargetOfAddress(_msgSender()), _amount);
@@ -133,7 +133,7 @@ contract BAMtoken is MERC20Snapshot {
 
         uint256 amount = _bridgeToken.getBridgeAmount(_id);
         _bridgeToken.approveBridge(account, _id);
-        forceTransfer(lockBridge, account, amount);
+        _forceTransfer(lockBridge, account, amount);
 
         emit BridgeIn(getTargetOfAddress(_msgSender()), amount);
     }

@@ -82,7 +82,7 @@ contract MultiSigExecute {
         _;
     }
 
-    modifier isCurrentTransaction(uint256 _id) {
+    modifier isPendingTransaction(uint256 _id) {
         require(
             _id > 0 &&
                 _id <= _transactionId.current() &&
@@ -206,7 +206,7 @@ contract MultiSigExecute {
 
     function revokeTransaction(uint256 _id)
         public
-        isCurrentTransaction(_id)
+        isPendingTransaction(_id)
         onlyOwner
     {
         require(isConfirmed[_id][msg.sender], "must confirm first");
@@ -219,7 +219,7 @@ contract MultiSigExecute {
 
     function confirmTransaction(uint256 _id)
         public
-        isCurrentTransaction(_id)
+        isPendingTransaction(_id)
         onlyOwner
     {
         require(
@@ -235,10 +235,11 @@ contract MultiSigExecute {
 
     function cancelTransaction(uint256 _id)
         public
-        isCurrentTransaction(_id)
+        isPendingTransaction(_id)
         onlyOwner
     {
         Transaction memory transactionData = transactions[_id];
+        require(transactionData.status == TxStatus.PENDING, "Invalid status");
         if (isOwner(transactionData.submitter)) {
             require(
                 transactionData.submitter == msg.sender,
@@ -257,7 +258,7 @@ contract MultiSigExecute {
         emit CancelTransaction(_id);
     }
 
-    function executeTransaction(uint256 _id) public isCurrentTransaction(_id) {
+    function executeTransaction(uint256 _id) public isPendingTransaction(_id) {
         Transaction memory transactionData = transactions[_id];
         require(
             isOwner(transactionData.submitter),

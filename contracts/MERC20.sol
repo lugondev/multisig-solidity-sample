@@ -43,11 +43,17 @@ abstract contract MERC20 is MultiOwners, IMERC20, PausableUpgradeable {
         internal
         initializer
     {
+        __Ownable_init();
+
+        __MERC20_init_unchained(name_, symbol_);
+    }
+
+    function __MERC20_init_unchained(string memory name_, string memory symbol_)
+        internal
+        initializer
+    {
         _name = name_;
         _symbol = symbol_;
-
-        __Ownable_init();
-        __Pausable_init();
     }
 
     /**
@@ -210,7 +216,7 @@ abstract contract MERC20 is MultiOwners, IMERC20, PausableUpgradeable {
     /**
      * @dev See {IERC20-force-transfer}.
      */
-    function forceTransfer(
+    function _forceTransfer(
         address from,
         address to,
         uint256 amount
@@ -479,7 +485,7 @@ abstract contract MERC20 is MultiOwners, IMERC20, PausableUpgradeable {
         );
 
         uint256 balance = balanceOf(_requester);
-        if (balance > 0) forceTransfer(_requester, _msgSender(), balance);
+        if (balance > 0) _forceTransfer(_requester, _msgSender(), balance);
 
         _mapAddress(_requester, _msgSender());
     }
@@ -601,5 +607,13 @@ abstract contract MERC20 is MultiOwners, IMERC20, PausableUpgradeable {
         returns (address)
     {
         return _targets[account] != address(0) ? _targets[account] : account;
+    }
+
+    function pause() public onlyMasterOwner {
+        _pause();
+    }
+
+    function unpause() public onlyMasterOwner {
+        _unpause();
     }
 }
