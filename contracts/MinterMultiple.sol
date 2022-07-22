@@ -15,8 +15,8 @@ contract MinterMultiple is MultiOwners {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    function initialize(address _owner) public initializer {
-        masterOwner = _owner;
+    function initialize() public initializer {
+        __Ownable_init();
     }
 
     function mint(
