@@ -7,7 +7,7 @@ import "./interfaces/IAM.sol";
 import "./interfaces/IBridgeConverter.sol";
 import "./interfaces/IMigration.sol";
 
-contract BToken is BERC20Snapshot {
+abstract contract BToken is BERC20Snapshot {
     event Migration(address indexed account, uint256 amount);
     event UpdateMigration(address indexed _migration);
 
@@ -19,7 +19,7 @@ contract BToken is BERC20Snapshot {
         string memory _name,
         string memory _symbol,
         address _iam
-    ) public initializer {
+    ) internal onlyInitializing {
         __BERC20_init(_name, _symbol);
 
         iam = IAM(_iam);

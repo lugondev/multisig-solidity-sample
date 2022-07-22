@@ -23,8 +23,6 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
     mapping(address => bool) public isDisableBlacklists;
 
     function init() public initializer {
-        __AccessControl_init();
-
         _setRoleAdmin(ADMIN, ADMIN);
         _setRoleAdmin(MANAGER, ADMIN);
         _setupRole(ADMIN, _msgSender());
@@ -44,7 +42,7 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
         returns (bool)
     {
         if (isDisableBlacklists[_target]) return false;
-        
+
         return blacklists[_target].contains(_user);
     }
 

@@ -53,7 +53,7 @@ abstract contract BERC20 is MultiOwners, IBERC20, PausableUpgradeable {
      */
     function __BERC20_init(string memory name_, string memory symbol_)
         internal
-        initializer
+        onlyInitializing
     {
         __Ownable_init();
         __BERC20_init_unchained(name_, symbol_);
@@ -61,7 +61,7 @@ abstract contract BERC20 is MultiOwners, IBERC20, PausableUpgradeable {
 
     function __BERC20_init_unchained(string memory name_, string memory symbol_)
         internal
-        initializer
+        onlyInitializing
     {
         _name = name_;
         _symbol = symbol_;

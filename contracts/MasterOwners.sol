@@ -50,12 +50,9 @@ contract MasterOwners is ContextUpgradeable {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    function initialized() public initializer {
+    function initialize() public initializer {
         __Context_init_unchained();
-        __Ownable_init_unchained();
-    }
 
-    function __Ownable_init_unchained() internal initializer {
         masterOwner = _msgSender();
     }
 

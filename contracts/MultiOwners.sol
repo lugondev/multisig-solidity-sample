@@ -23,12 +23,12 @@ abstract contract MultiOwners is ContextUpgradeable {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    function __Ownable_init() internal initializer {
+    function __Ownable_init() internal onlyInitializing {
         __Context_init_unchained();
         __Ownable_init_unchained();
     }
 
-    function __Ownable_init_unchained() internal initializer {
+    function __Ownable_init_unchained() internal onlyInitializing {
         masterOwner = _msgSender();
     }
 
