@@ -238,7 +238,7 @@ contract MultiSigExecute {
         isPendingTransaction(_id)
         onlyOwner
     {
-        Transaction memory transactionData = transactions[_id];
+        Transaction storage transactionData = transactions[_id];
         require(transactionData.status == TxStatus.PENDING, "Invalid status");
         if (isOwner(transactionData.submitter)) {
             require(
@@ -259,7 +259,7 @@ contract MultiSigExecute {
     }
 
     function executeTransaction(uint256 _id) public isPendingTransaction(_id) {
-        Transaction memory transactionData = transactions[_id];
+        Transaction storage transactionData = transactions[_id];
         require(
             isOwner(transactionData.submitter),
             "summiter is revoked owner"

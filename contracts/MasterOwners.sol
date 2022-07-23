@@ -216,7 +216,7 @@ contract MasterOwners is ContextUpgradeable {
         isPendingTransaction(_id)
         onlyOwner
     {
-        Transaction memory transactionData = transactions[_id];
+        Transaction storage transactionData = transactions[_id];
         require(
             transactionData.submitter == msg.sender ||
                 msg.sender == masterOwner ||
@@ -236,7 +236,7 @@ contract MasterOwners is ContextUpgradeable {
         isPendingTransaction(_id)
         onlyMasterOwner
     {
-        Transaction memory transactionData = transactions[_id];
+        Transaction storage transactionData = transactions[_id];
         pendingTxs.remove(_id);
 
         (bool success, ) = transactionData.target.call(transactionData.data);
