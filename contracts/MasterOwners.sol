@@ -65,7 +65,7 @@ contract MasterOwners is ContextUpgradeable {
         __Context_init_unchained();
 
         masterOwner = _msgSender();
-        defaultDeadline = 1 minutes;
+        defaultDeadline = 1 days;
     }
 
     /**
