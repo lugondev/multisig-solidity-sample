@@ -20,6 +20,7 @@ contract MasterOwners is ContextUpgradeable {
     EnumerableSet.UintSet cancelTxs;
 
     event SetOwner(address indexed newOwner);
+    event UpdateDefaultDeadline(uint256 _DefaultDeadline);
     event RevokeOwner(address indexed owner);
     event RenounceOwnership(address indexed owner);
     event RenounceMasterOwnership(address indexed owner);
@@ -27,11 +28,18 @@ contract MasterOwners is ContextUpgradeable {
         address indexed previousOwner,
         address indexed newOwner
     );
-    event ExecuteTransaction(uint256 indexed _id);
-    event CancelTransaction(uint256 indexed _id);
-    event SubmitTransaction(uint256 indexed _id, address _target, bytes _data);
+    event ExecuteTransaction(uint256 indexed id);
+    event CancelTransaction(uint256 indexed id);
+    event SubmitTransaction(
+        uint256 indexed id,
+        address target,
+        bytes data,
+        uint256 deadline,
+        string note
+    );
 
     Counters.Counter private _transactionId;
+    uint256 public defaultDeadline;
     enum TxStatus {
         PENDING,
         SUCCESS,
@@ -42,6 +50,8 @@ contract MasterOwners is ContextUpgradeable {
         address submitter;
         address target;
         bytes data;
+        string note;
+        uint256 deadline;
         TxStatus status;
     }
 
@@ -54,6 +64,7 @@ contract MasterOwners is ContextUpgradeable {
         __Context_init_unchained();
 
         masterOwner = _msgSender();
+        defaultDeadline = 1 days;
     }
 
     /**
@@ -115,6 +126,17 @@ contract MasterOwners is ContextUpgradeable {
         masterOwner = address(0);
 
         emit RenounceMasterOwnership(_msgSender());
+    }
+
+    function changeDefaultDeadline(uint256 _newDefaultDeadline)
+        public
+        virtual
+        onlyMasterOwner
+    {
+        require(_newDefaultDeadline > 0, "invalid deadline");
+        defaultDeadline = _newDefaultDeadline;
+
+        emit UpdateDefaultDeadline(_newDefaultDeadline);
     }
 
     function transferMasterOwnership(address newOwner)
@@ -195,20 +217,36 @@ contract MasterOwners is ContextUpgradeable {
         return _transactionId.current();
     }
 
-    function submitTransaction(address _target, bytes memory _data)
-        public
-        onlyOwner
-    {
+    function submitTransaction(
+        address _target,
+        bytes memory _data,
+        uint256 _deadline,
+        string memory _note
+    ) public onlyOwner {
+        if (_deadline == 0) {
+            _deadline = defaultDeadline + block.timestamp;
+        } else {
+            require(_deadline > block.timestamp, "invalid deadline");
+        }
+
         _transactionId.increment();
         transactions[currentTransactionId()] = Transaction({
             submitter: msg.sender,
             target: _target,
             data: _data,
-            status: TxStatus.PENDING
+            status: TxStatus.PENDING,
+            deadline: _deadline,
+            note: _note
         });
         pendingTxs.add(currentTransactionId());
 
-        emit SubmitTransaction(currentTransactionId(), _target, _data);
+        emit SubmitTransaction(
+            currentTransactionId(),
+            _target,
+            _data,
+            _deadline,
+            _note
+        );
     }
 
     function cancelTransaction(uint256 _id)
@@ -220,8 +258,9 @@ contract MasterOwners is ContextUpgradeable {
         require(
             transactionData.submitter == msg.sender ||
                 msg.sender == masterOwner ||
-                !isOwner(transactionData.submitter),
-            "cannot cancel other's tx"
+                !isOwner(transactionData.submitter) ||
+                transactionData.deadline < block.timestamp,
+            "cannot cancel tx"
         );
 
         pendingTxs.remove(_id);
@@ -237,6 +276,8 @@ contract MasterOwners is ContextUpgradeable {
         onlyMasterOwner
     {
         Transaction storage transactionData = transactions[_id];
+        require(transactionData.deadline >= block.timestamp, "tx expired");
+
         pendingTxs.remove(_id);
 
         (bool success, ) = transactionData.target.call(transactionData.data);
