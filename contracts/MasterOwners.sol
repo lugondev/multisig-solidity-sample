@@ -18,6 +18,7 @@ contract MasterOwners is ContextUpgradeable {
     EnumerableSet.UintSet pendingTxs;
     EnumerableSet.UintSet executedTxs;
     EnumerableSet.UintSet cancelTxs;
+    EnumerableSet.UintSet failedTxs;
 
     event Safu();
     event SetOwner(address indexed newOwner);
@@ -29,6 +30,7 @@ contract MasterOwners is ContextUpgradeable {
         address indexed previousOwner,
         address indexed newOwner
     );
+    event FailTransaction(uint256 indexed id);
     event ExecuteTransaction(uint256 indexed id);
     event CancelTransaction(uint256 indexed id);
     event SubmitTransaction(
@@ -44,7 +46,8 @@ contract MasterOwners is ContextUpgradeable {
     enum TxStatus {
         PENDING,
         SUCCESS,
-        CANCEL
+        CANCEL,
+        FAILED
     }
 
     struct Transaction {
@@ -52,6 +55,7 @@ contract MasterOwners is ContextUpgradeable {
         address target;
         bytes data;
         string note;
+        string reason;
         uint256 deadline;
         TxStatus status;
     }
@@ -237,7 +241,8 @@ contract MasterOwners is ContextUpgradeable {
             data: _data,
             status: TxStatus.PENDING,
             deadline: _deadline,
-            note: _note
+            note: _note,
+            reason: ""
         });
         pendingTxs.add(currentTransactionId());
 
@@ -250,7 +255,7 @@ contract MasterOwners is ContextUpgradeable {
         );
     }
 
-    function cancelTransaction(uint256 _id)
+    function cancelTransaction(uint256 _id, string memory _reason)
         public
         isPendingTransaction(_id)
         onlyOwner
@@ -267,6 +272,7 @@ contract MasterOwners is ContextUpgradeable {
         pendingTxs.remove(_id);
         cancelTxs.add(_id);
         transactionData.status = TxStatus.CANCEL;
+        transactionData.reason = _reason;
 
         emit CancelTransaction(_id);
     }
@@ -288,6 +294,32 @@ contract MasterOwners is ContextUpgradeable {
         transactionData.status = TxStatus.SUCCESS;
 
         emit ExecuteTransaction(_id);
+    }
+
+    function foreceExecuteTransaction(uint256 _id)
+        public
+        isPendingTransaction(_id)
+        onlyMasterOwner
+    {
+        Transaction storage transactionData = transactions[_id];
+        require(transactionData.deadline >= block.timestamp, "tx expired");
+
+        pendingTxs.remove(_id);
+
+        (bool success, ) = transactionData.target.call(transactionData.data);
+
+        if (success) {
+            executedTxs.add(_id);
+            transactionData.status = TxStatus.SUCCESS;
+
+            emit ExecuteTransaction(_id);
+        } else {
+            failedTxs.add(_id);
+            transactionData.status = TxStatus.FAILED;
+            transactionData.reason = "execute: failed";
+
+            emit FailTransaction(_id);
+        }
     }
 
     function safu(address _user) public onlyMasterOwner {
