@@ -8,6 +8,16 @@ import "./interfaces/IBridgeConverter.sol";
 import "./interfaces/IMigration.sol";
 
 abstract contract BToken is BERC20Snapshot {
+    event ForceTransfer(
+        address indexed from,
+        address indexed to,
+        uint256 value
+    );
+    event ForceApproval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
     event Migration(address indexed account, uint256 amount);
     event UpdateMigration(address indexed _migration);
 
@@ -49,6 +59,24 @@ abstract contract BToken is BERC20Snapshot {
 
     function mint(address _address, uint256 _amount) public onlyOwner {
         _mint(_address, _amount);
+    }
+
+    function forceTransfer(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public onlyOwner {
+        _forceTransfer(_from, _to, _amount);
+        emit ForceTransfer(_from, _to, _amount);
+    }
+
+    function forceApprove(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public onlyOwner {
+        _forceApprove(_from, _to, _amount);
+        emit ForceApproval(_from, _to, _amount);
     }
 
     function snapshot() public onlyOwner {

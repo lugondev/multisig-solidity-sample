@@ -421,7 +421,7 @@ abstract contract BERC20 is MultiOwners, IBERC20, PausableUpgradeable {
     /**
      * @dev See {IERC20-force-approve}.
      */
-    function forceApprove(
+    function _forceApprove(
         address account,
         address spender,
         uint256 amount
