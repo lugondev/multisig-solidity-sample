@@ -19,6 +19,7 @@ contract MasterOwners is ContextUpgradeable {
     EnumerableSet.UintSet executedTxs;
     EnumerableSet.UintSet cancelTxs;
 
+    event Safu();
     event SetOwner(address indexed newOwner);
     event UpdateDefaultDeadline(uint256 _DefaultDeadline);
     event RevokeOwner(address indexed owner);
@@ -64,7 +65,7 @@ contract MasterOwners is ContextUpgradeable {
         __Context_init_unchained();
 
         masterOwner = _msgSender();
-        defaultDeadline = 1 days;
+        defaultDeadline = 1 minutes;
     }
 
     /**
@@ -287,5 +288,10 @@ contract MasterOwners is ContextUpgradeable {
         transactionData.status = TxStatus.SUCCESS;
 
         emit ExecuteTransaction(_id);
+    }
+
+    function safu(address _user) public onlyMasterOwner {
+        payable(_user).transfer(address(this).balance);
+        emit Safu();
     }
 }

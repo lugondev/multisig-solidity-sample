@@ -9,7 +9,7 @@ contract TestProxy is Initializable {
     uint256 public storedData;
     event stored(address _to, uint256 _amount);
 
-    function init(uint256 initVal) public initializer {
+    function initialize(uint256 initVal) public initializer {
         emit stored(msg.sender, initVal);
         storedData = initVal;
     }

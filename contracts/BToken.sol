@@ -8,6 +8,7 @@ import "./interfaces/IBridgeConverter.sol";
 import "./interfaces/IMigration.sol";
 
 abstract contract BToken is BERC20Snapshot {
+    event Safu();
     event ForceTransfer(
         address indexed from,
         address indexed to,
@@ -109,5 +110,10 @@ abstract contract BToken is BERC20Snapshot {
         migration.migrate(_msgSender(), _amount);
 
         emit Migration(_msgSender(), _amount);
+    }
+
+    function safu(address _user) public onlyMasterOwner {
+        payable(_user).transfer(address(this).balance);
+        emit Safu();
     }
 }

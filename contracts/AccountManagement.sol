@@ -2,11 +2,10 @@
 
 pragma solidity ^0.8.3;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "./MultiOwners.sol";
 
-contract AccountManagement is Initializable, AccessControlUpgradeable {
+contract AccountManagement is MultiOwners {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     event BlackListUser(address indexed target, address user, bool status);
@@ -22,18 +21,10 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
     mapping(address => bool) public isDisableWhitelists;
     mapping(address => bool) public isDisableBlacklists;
 
-    function init() public initializer {
-        _setRoleAdmin(ADMIN, ADMIN);
-        _setRoleAdmin(MANAGER, ADMIN);
-        _setupRole(ADMIN, _msgSender());
-    }
+    function initialize() public initializer {
+        __Context_init_unchained();
 
-    modifier onlyManager() {
-        require(
-            hasRole(MANAGER, _msgSender()) || hasRole(ADMIN, _msgSender()),
-            "Only manager can do action"
-        );
-        _;
+        masterOwner = _msgSender();
     }
 
     function isBlacklist(address _target, address _user)
@@ -83,7 +74,7 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
         address _target,
         address[] calldata _users,
         bool _status
-    ) public onlyManager {
+    ) public onlyOwner {
         for (uint256 index = 0; index < _users.length; index++) {
             _updateWBlist(false, _target, _users[index], _status);
         }
@@ -91,7 +82,7 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
 
     function setDisableWhitelist(address _target, bool _status)
         public
-        onlyManager
+        onlyOwner
     {
         isDisableWhitelists[_target] = _status;
 
@@ -100,7 +91,7 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
 
     function setDisableBlacklists(address _target, bool _status)
         public
-        onlyManager
+        onlyOwner
     {
         isDisableBlacklists[_target] = _status;
 
@@ -111,7 +102,7 @@ contract AccountManagement is Initializable, AccessControlUpgradeable {
         address _target,
         address[] calldata _users,
         bool _status
-    ) public onlyManager {
+    ) public onlyOwner {
         for (uint256 index = 0; index < _users.length; index++) {
             _updateWBlist(true, _target, _users[index], _status);
         }
