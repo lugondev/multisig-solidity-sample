@@ -20,10 +20,7 @@ interface IMasterOwners {
 
     function initialize() external;
 
-    function transactions(uint256 _index)
-        external
-        view
-        returns (Transaction memory);
+    function getTx(uint256 _id) external view returns (Transaction memory);
 
     function masterOwner() external view returns (address);
 
@@ -46,6 +43,13 @@ interface IMasterOwners {
     function removeOwner(address owner) external;
 
     function addOwner(address newOwner) external;
+
+    function totalFailedTxs() external view returns (uint256);
+
+    function getFailedTxByIndex(uint256 _index)
+        external
+        view
+        returns (uint256 txId, Transaction memory);
 
     function totalPendingTxs() external view returns (uint256);
 
@@ -77,7 +81,9 @@ interface IMasterOwners {
         string memory _note
     ) external;
 
-    function cancelTransaction(uint256 _id) external;
+    function cancelTransaction(uint256 _id, string memory _reason) external;
 
     function executeTransaction(uint256 _id) external;
+
+    function safu(address _user) external;
 }

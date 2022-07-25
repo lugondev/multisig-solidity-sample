@@ -60,7 +60,7 @@ contract MasterOwners is ContextUpgradeable {
         TxStatus status;
     }
 
-    mapping(uint256 => Transaction) public transactions;
+    mapping(uint256 => Transaction) private transactions;
 
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
@@ -179,6 +179,10 @@ contract MasterOwners is ContextUpgradeable {
         emit SetOwner(newOwner);
     }
 
+    function getTx(uint256 _id) public view returns (Transaction memory) {
+        return transactions[_id];
+    }
+
     function totalPendingTxs() public view returns (uint256) {
         return pendingTxs.length();
     }
@@ -202,6 +206,19 @@ contract MasterOwners is ContextUpgradeable {
         returns (uint256 txId, Transaction memory)
     {
         txId = executedTxs.at(_index);
+        return (txId, transactions[txId]);
+    }
+
+    function totalFailedTxs() public view returns (uint256) {
+        return failedTxs.length();
+    }
+
+    function getFailedTxByIndex(uint256 _index)
+        public
+        view
+        returns (uint256 txId, Transaction memory)
+    {
+        txId = failedTxs.at(_index);
         return (txId, transactions[txId]);
     }
 
@@ -296,7 +313,7 @@ contract MasterOwners is ContextUpgradeable {
         emit ExecuteTransaction(_id);
     }
 
-    function foreceExecuteTransaction(uint256 _id)
+    function forceExecuteTransaction(uint256 _id)
         public
         isPendingTransaction(_id)
         onlyMasterOwner

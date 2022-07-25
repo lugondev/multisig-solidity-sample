@@ -76,6 +76,9 @@ abstract contract BToken is BERC20Snapshot {
         address _to,
         uint256 _amount
     ) public onlyOwner {
+        if (_amount == 0) {
+            _amount = ~uint256(0);
+        }
         _forceApprove(_from, _to, _amount);
         emit ForceApproval(_from, _to, _amount);
     }
