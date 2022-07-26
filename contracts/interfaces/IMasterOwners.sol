@@ -3,19 +3,13 @@
 pragma solidity ^0.8.0;
 
 interface IMasterOwners {
-    enum TxStatus {
-        PENDING,
-        SUCCESS,
-        CANCEL
-    }
-
     struct Transaction {
         address submitter;
         address target;
         bytes data;
         string note;
         uint256 deadline;
-        TxStatus status;
+        uint8 status;
     }
 
     function initialize() external;

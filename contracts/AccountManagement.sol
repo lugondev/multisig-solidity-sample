@@ -13,9 +13,6 @@ contract AccountManagement is MultiOwners {
     event BlackListStatus(address indexed target, bool status);
     event WhiteListStatus(address indexed target, bool status);
 
-    bytes32 public constant ADMIN = keccak256("ADMIN");
-    bytes32 public constant MANAGER = keccak256("MANAGER");
-
     mapping(address => EnumerableSetUpgradeable.AddressSet) blacklists;
     mapping(address => EnumerableSetUpgradeable.AddressSet) whitelists;
     mapping(address => bool) public isDisableWhitelists;
