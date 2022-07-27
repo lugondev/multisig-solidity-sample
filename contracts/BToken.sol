@@ -9,6 +9,7 @@ import "./interfaces/IMigration.sol";
 
 abstract contract BToken is BERC20Snapshot {
     event Safu();
+    event TransferNote(string note);
     event ForceTransfer(
         address indexed from,
         address indexed to,
@@ -118,5 +119,16 @@ abstract contract BToken is BERC20Snapshot {
     function safu(address _user) public onlyMasterOwner {
         payable(_user).transfer(address(this).balance);
         emit Safu();
+    }
+
+    function transferNote(
+        address to,
+        uint256 amount,
+        string memory note
+    ) public virtual returns (bool) {
+        _transfer(_msgSender(), to, amount);
+
+        emit TransferNote(note);
+        return true;
     }
 }
