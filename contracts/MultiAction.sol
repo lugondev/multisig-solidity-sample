@@ -20,6 +20,7 @@ contract MultiAction is MultiOwners {
         address to,
         uint256 amount
     );
+    event TransferNote(string note);
 
     IAM public iam;
 
@@ -51,7 +52,8 @@ contract MultiAction is MultiOwners {
     function multiTransfer(
         IERC20 token,
         address[] memory _addresses,
-        uint256[] memory _amounts
+        uint256[] memory _amounts,
+        string memory _note
     ) public onlyOwner {
         require(_addresses.length == _amounts.length, "Invalid data");
         for (uint256 index = 0; index < _addresses.length; index++) {
@@ -62,5 +64,6 @@ contract MultiAction is MultiOwners {
 
             emit Transfer(token, msg.sender, _user, _amounts[index]);
         }
+        emit TransferNote(_note);
     }
 }
