@@ -53,7 +53,7 @@ contract MultiAction is MultiOwners {
         IERC20 token,
         address[] memory _addresses,
         uint256[] memory _amounts
-    ) public onlyOwner {
+    ) internal {
         require(_addresses.length == _amounts.length, "Invalid data");
         for (uint256 index = 0; index < _addresses.length; index++) {
             address _user = _addresses[index];
