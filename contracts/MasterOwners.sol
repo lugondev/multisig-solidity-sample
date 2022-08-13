@@ -3,22 +3,21 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 
 contract MasterOwners is ContextUpgradeable {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
-    using EnumerableSet for EnumerableSet.UintSet;
-    using Counters for Counters.Counter;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
+    using CountersUpgradeable for CountersUpgradeable.Counter;
 
     EnumerableSetUpgradeable.AddressSet _owners;
     address public masterOwner;
 
-    EnumerableSet.UintSet pendingTxs;
-    EnumerableSet.UintSet executedTxs;
-    EnumerableSet.UintSet cancelTxs;
-    EnumerableSet.UintSet failedTxs;
+    EnumerableSetUpgradeable.UintSet pendingTxs;
+    EnumerableSetUpgradeable.UintSet executedTxs;
+    EnumerableSetUpgradeable.UintSet cancelTxs;
+    EnumerableSetUpgradeable.UintSet failedTxs;
 
     event Safu();
     event SetOwner(address indexed newOwner);
@@ -41,7 +40,7 @@ contract MasterOwners is ContextUpgradeable {
         string note
     );
 
-    Counters.Counter private _transactionId;
+    CountersUpgradeable.Counter private _transactionId;
     uint256 public defaultDeadline;
     enum TxStatus {
         PENDING,
