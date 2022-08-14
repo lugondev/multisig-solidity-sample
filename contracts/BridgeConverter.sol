@@ -28,6 +28,7 @@ contract BridgeConverter is MultiOwners {
     event SafuNative(address indexed user, uint256 amount);
     event CreatePair(address indexed src, address indexed dst);
     event UpdatePair(uint256 indexed id, bool status);
+    event TransferNote(string note);
 
     struct BridgePair {
         address srcToken;
@@ -121,6 +122,7 @@ contract BridgeConverter is MultiOwners {
             hash: hash
         });
 
+        emit TransferNote("Send to Bridge");
         emit Converter(_msgSender(), currentBridgeId(), hash);
     }
 
@@ -207,6 +209,7 @@ contract BridgeConverter is MultiOwners {
         pendingTxs.remove(_id);
         executedTxs.add(_id);
 
+        emit TransferNote("Release from Bridge");
         emit Release(releaseData.user, _id);
     }
 
