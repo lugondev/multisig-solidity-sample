@@ -21,8 +21,9 @@ contract BridgeConverter is MultiOwners {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
     using CountersUpgradeable for CountersUpgradeable.Counter;
 
-    event Converter(address indexed user, uint256 id, bytes32 amount);
+    event Converter(address indexed user, uint256 id, bytes32 hash);
     event Release(address indexed user, uint256 id);
+    event CancelRelease(uint256 id);
     event PreRelease(address indexed src, address indexed dst, uint256 id);
     event Safu(address indexed token, address indexed user, uint256 amount);
     event SafuNative(address indexed user, uint256 amount);
@@ -48,7 +49,7 @@ contract BridgeConverter is MultiOwners {
         bytes32 hash;
     }
     BridgePair[] public pairs;
-    mapping(address => mapping(address => bool)) public existsPairs;
+    mapping(address => mapping(address => uint256)) public existsPairs;
     mapping(uint256 => BridgeData) private bridges;
     mapping(uint256 => ReleaseData) private releases;
 
@@ -89,6 +90,7 @@ contract BridgeConverter is MultiOwners {
 
     function convertFrom(uint256 _pairId, uint256 _amount) public {
         _convertData(_pairId, _amount);
+
         IBERC20(pairs[_pairId].srcToken).transferFrom(
             _msgSender(),
             address(this),
@@ -139,9 +141,10 @@ contract BridgeConverter is MultiOwners {
             ? (_srcToken, _dstToken)
             : (_dstToken, _srcToken);
 
-        require(!existsPairs[token0][token1], "Exists pair");
-        existsPairs[token0][token1] = true;
-        existsPairs[token1][token0] = true;
+        require(existsPairs[token0][token1] == 0, "Exists pair");
+        uint256 pairId = pairs.length + 1;
+        existsPairs[token0][token1] = pairId;
+        existsPairs[token1][token0] = pairId;
 
         pairs.push(
             BridgePair({srcToken: _srcToken, dstToken: _dstToken, status: true})
@@ -158,6 +161,30 @@ contract BridgeConverter is MultiOwners {
         emit UpdatePair(_pairId, _status);
     }
 
+    function getPairId(address _srcToken, address _dstToken)
+        public
+        view
+        returns (uint256)
+    {
+        return existsPairs[_srcToken][_dstToken];
+    }
+
+    function isValidPair(address _srcToken, address _dstToken)
+        public
+        view
+        returns (bool)
+    {
+        return existsPairs[_srcToken][_dstToken] > 0;
+    }
+
+    function getPairByIndex(uint256 _index)
+        public
+        view
+        returns (BridgePair memory)
+    {
+        return pairs[_index];
+    }
+
     function totalPairs() public view returns (uint256) {
         return pairs.length;
     }
@@ -170,9 +197,15 @@ contract BridgeConverter is MultiOwners {
         bytes32 _convertedHash,
         uint256 _amount
     ) external onlyOwner {
+        require(iam.isWhitelist(address(this), _user), "User is not whitelist");
+
         bytes32 hash = keccak256(
             abi.encodePacked(_user, _srcToken, _dstToken, _id, _amount)
         );
+
+        require(!releasedHashs[hash], "Hash already released");
+        releasedHashs[hash] = true;
+
         require(hash == _convertedHash, "Invalid hash");
         _releasedId.increment();
 
@@ -190,16 +223,26 @@ contract BridgeConverter is MultiOwners {
 
     function cancelRelease(uint256 _id) external onlyOwner {
         require(pendingTxs.contains(_id), "Invalid id");
+        ReleaseData memory releaseData = getRelease(_id);
+        require(releasedHashs[releaseData.hash], "Hash not prepared");
+
+        releasedHashs[releaseData.hash] = false;
 
         pendingTxs.remove(_id);
         cancelTxs.remove(_id);
+
+        emit CancelRelease(_id);
     }
 
     function release(uint256 _id) public onlyMasterOwner {
         require(pendingTxs.contains(_id), "Invalid id");
         ReleaseData memory releaseData = getRelease(_id);
-        require(!releasedHashs[releaseData.hash], "Hash already released");
-        releasedHashs[releaseData.hash] = true;
+        require(
+            iam.isWhitelist(address(this), releaseData.user),
+            "User is not whitelist"
+        );
+
+        require(releasedHashs[releaseData.hash], "Hash not prepared");
 
         IERC20(releaseData.token).transfer(
             releaseData.user,
