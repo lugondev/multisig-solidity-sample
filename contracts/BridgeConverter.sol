@@ -21,19 +21,32 @@ contract BridgeConverter is MultiOwners {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
     using CountersUpgradeable for CountersUpgradeable.Counter;
 
-    event Converter(address indexed user, uint256 id, bytes32 hash);
+    event Converter(
+        address indexed user,
+        uint256 id,
+        uint256 amount,
+        bytes32 hash
+    );
     event Release(address indexed user, uint256 id);
+    event MPCRelease(address indexed user, uint256 amount, bytes32 hash);
     event CancelRelease(uint256 id);
-    event PreRelease(address indexed src, address indexed dst, uint256 id);
+    event PreRelease(
+        address indexed src,
+        address indexed dst,
+        uint256 id,
+        uint256 amount
+    );
     event Safu(address indexed token, address indexed user, uint256 amount);
     event SafuNative(address indexed user, uint256 amount);
     event CreatePair(address indexed src, address indexed dst);
     event UpdatePair(uint256 indexed id, bool status);
+    event UpdateSigner(address indexed signer, bool status);
     event TransferNote(string note);
 
     struct BridgePair {
         address srcToken;
         address dstToken;
+        uint256 min;
         bool status;
     }
     struct BridgeData {
@@ -49,14 +62,14 @@ contract BridgeConverter is MultiOwners {
         bytes32 hash;
     }
     BridgePair[] public pairs;
-    mapping(address => mapping(address => uint256)) public existsPairs;
+    mapping(address => mapping(address => uint256)) public existsPairIds;
     mapping(uint256 => BridgeData) private bridges;
     mapping(uint256 => ReleaseData) private releases;
 
     CountersUpgradeable.Counter private _bridgeId;
     CountersUpgradeable.Counter private _releasedId;
 
-    mapping(bytes32 => bool) releasedHashs;
+    mapping(bytes32 => bool) public releasedHashs;
 
     EnumerableSetUpgradeable.UintSet pendingTxs;
     EnumerableSetUpgradeable.UintSet executedTxs;
@@ -102,6 +115,10 @@ contract BridgeConverter is MultiOwners {
         require(_pairId < pairs.length, "Pair not found");
         require(pairs[_pairId].status, "Bridge is not active");
         require(
+            _amount >= pairs[_pairId].min,
+            "Amount is less than min amount"
+        );
+        require(
             IBERC20(pairs[_pairId].srcToken).balanceOf(_msgSender()) >= _amount,
             "Not enough balance"
         );
@@ -125,13 +142,14 @@ contract BridgeConverter is MultiOwners {
         });
 
         emit TransferNote("Send to Bridge");
-        emit Converter(_msgSender(), currentBridgeId(), hash);
+        emit Converter(_msgSender(), currentBridgeId(), _amount, hash);
     }
 
-    function createPair(address _srcToken, address _dstToken)
-        public
-        onlyMasterOwner
-    {
+    function createPair(
+        address _srcToken,
+        address _dstToken,
+        uint256 _min
+    ) public onlyMasterOwner {
         require(
             _srcToken != address(0) && _dstToken != address(0),
             "ZERO_ADDRESS"
@@ -141,13 +159,18 @@ contract BridgeConverter is MultiOwners {
             ? (_srcToken, _dstToken)
             : (_dstToken, _srcToken);
 
-        require(existsPairs[token0][token1] == 0, "Exists pair");
+        require(existsPairIds[token0][token1] == 0, "Exists pair");
         uint256 pairId = pairs.length + 1;
-        existsPairs[token0][token1] = pairId;
-        existsPairs[token1][token0] = pairId;
+        existsPairIds[token0][token1] = pairId;
+        existsPairIds[token1][token0] = pairId;
 
         pairs.push(
-            BridgePair({srcToken: _srcToken, dstToken: _dstToken, status: true})
+            BridgePair({
+                srcToken: _srcToken,
+                dstToken: _dstToken,
+                min: _min,
+                status: true
+            })
         );
 
         emit CreatePair(_srcToken, _dstToken);
@@ -166,7 +189,7 @@ contract BridgeConverter is MultiOwners {
         view
         returns (uint256)
     {
-        return existsPairs[_srcToken][_dstToken];
+        return existsPairIds[_srcToken][_dstToken];
     }
 
     function isValidPair(address _srcToken, address _dstToken)
@@ -174,7 +197,7 @@ contract BridgeConverter is MultiOwners {
         view
         returns (bool)
     {
-        return existsPairs[_srcToken][_dstToken] > 0;
+        return existsPairIds[_srcToken][_dstToken] > 0;
     }
 
     function getPairByIndex(uint256 _index)
@@ -218,7 +241,34 @@ contract BridgeConverter is MultiOwners {
 
         pendingTxs.add(currentReleasedId());
 
-        emit PreRelease(_srcToken, _dstToken, _id);
+        emit PreRelease(_srcToken, _dstToken, _id, _amount);
+    }
+
+    function mpcRelease(
+        address _user,
+        address _srcToken,
+        address _dstToken,
+        uint256 _id,
+        bytes32 _convertedHash,
+        uint256 _amount,
+        bytes memory _signature
+    ) external onlyOwner {
+        require(iam.isWhitelist(address(this), _user), "User is not whitelist");
+
+        bytes32 hash = keccak256(
+            abi.encodePacked(_user, _srcToken, _dstToken, _id, _amount)
+        );
+
+        require(!releasedHashs[hash], "Hash already released");
+        releasedHashs[hash] = true;
+
+        require(hash == _convertedHash, "Invalid hash");
+        address signer = getSigner(hash, _signature);
+        require(isOwner(signer), "Invalid MPC's signature");
+
+        IERC20(_dstToken).transfer(_user, _amount);
+
+        emit MPCRelease(_user, _amount, hash);
     }
 
     function cancelRelease(uint256 _id) external onlyOwner {
@@ -278,6 +328,10 @@ contract BridgeConverter is MultiOwners {
         return bridges[_id];
     }
 
+    function isReleased(bytes32 _hash) public view returns (bool) {
+        return releasedHashs[_hash];
+    }
+
     function getRelease(uint256 _id) public view returns (ReleaseData memory) {
         return releases[_id];
     }
@@ -319,5 +373,47 @@ contract BridgeConverter is MultiOwners {
     {
         txId = cancelTxs.at(_index);
         return (txId, bridges[txId]);
+    }
+
+    function getSigner(bytes32 _signedMessageHash, bytes memory _signature)
+        public
+        pure
+        returns (address)
+    {
+        (bytes32 r, bytes32 s, uint8 v) = splitSignature(_signature);
+
+        return ecrecover(_signedMessageHash, v, r, s);
+    }
+
+    function splitSignature(bytes memory sig)
+        private
+        pure
+        returns (
+            bytes32 r,
+            bytes32 s,
+            uint8 v
+        )
+    {
+        require(sig.length == 65, "invalid signature length");
+
+        assembly {
+            /*
+            First 32 bytes stores the length of the signature
+
+            add(sig, 32) = pointer of sig + 32
+            effectively, skips first 32 bytes of signature
+
+            mload(p) loads next 32 bytes starting at the memory address p into memory
+            */
+
+            // first 32 bytes, after the length prefix
+            r := mload(add(sig, 32))
+            // second 32 bytes
+            s := mload(add(sig, 64))
+            // final byte (first byte of the next 32 bytes)
+            v := byte(0, mload(add(sig, 96)))
+        }
+
+        // implicitly return (r, s, v)
     }
 }
