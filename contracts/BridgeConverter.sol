@@ -16,6 +16,10 @@ interface IBERC20 is IERC20 {
     ) external;
 }
 
+interface IBurnERC20 is IERC20 {
+    function burn(uint256 _amount) external;
+}
+
 contract BridgeConverter is MultiOwners {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
@@ -40,6 +44,7 @@ contract BridgeConverter is MultiOwners {
     event SafuNative(address indexed user, uint256 amount);
     event CreatePair(address indexed src, address indexed dst);
     event UpdatePair(uint256 indexed id, bool status);
+    event UpdateOpenMpc(bool status);
     event UpdateSigner(address indexed signer, bool status);
     event TransferNote(string note);
 
@@ -65,6 +70,8 @@ contract BridgeConverter is MultiOwners {
     mapping(address => mapping(address => uint256)) public existsPairIds;
     mapping(uint256 => BridgeData) private bridges;
     mapping(uint256 => ReleaseData) private releases;
+    mapping(address => bool) public srcTokens;
+    mapping(address => bool) public dstTokens;
 
     CountersUpgradeable.Counter private _bridgeId;
     CountersUpgradeable.Counter private _releasedId;
@@ -76,11 +83,30 @@ contract BridgeConverter is MultiOwners {
     EnumerableSetUpgradeable.UintSet cancelTxs;
 
     IAM public iam;
+    bool public isOpenMpc;
 
     function initialize(address _iam) public initializer {
         __Ownable_init();
 
         iam = IAM(_iam);
+        isOpenMpc = true;
+    }
+
+    modifier isMpcReleaser() {
+        if (!isOpenMpc) {
+            require(isOwner(_msgSender()), "BridgeConverter: not mpc releaser");
+        }
+        _;
+    }
+
+    modifier isSrcToken(address _token) {
+        require(srcTokens[_token], "not source token");
+        _;
+    }
+
+    modifier isDstToken(address _token) {
+        require(dstTokens[_token], "not destination token");
+        _;
     }
 
     function currentBridgeId() public view returns (uint256) {
@@ -172,16 +198,53 @@ contract BridgeConverter is MultiOwners {
                 status: true
             })
         );
+        dstTokens[_dstToken] = true;
+        srcTokens[_srcToken] = true;
 
         emit CreatePair(_srcToken, _dstToken);
     }
 
-    function updatePair(uint256 _pairId, bool _status) public {
+    function updatePair(uint256 _pairId, bool _status) public onlyMasterOwner {
         require(_pairId < pairs.length, "Pair not found");
-        require(pairs[_pairId].status != _status, "Same status");
-        pairs[_pairId].status = _status;
+        BridgePair storage pair = pairs[_pairId];
+        require(pair.status != _status, "Same status");
+        pair.status = _status;
+        if (_status) {
+            dstTokens[pair.dstToken] = true;
+            srcTokens[pair.srcToken] = true;
+        } else {
+            dstTokens[pair.dstToken] = false;
+            srcTokens[pair.srcToken] = false;
+        }
 
         emit UpdatePair(_pairId, _status);
+    }
+
+    function updateStatusOpenMPC(bool _status) public onlyMasterOwner {
+        require(_status != isOpenMpc, "Same status");
+        isOpenMpc = _status;
+
+        emit UpdateOpenMpc(_status);
+    }
+
+    function updateSrcToken(address _token, bool _status)
+        public
+        onlyMasterOwner
+    {
+        require(_token != address(0), "ZERO_ADDRESS");
+
+        require(_status != srcTokens[_token], "Same status");
+        srcTokens[_token] = _status;
+    }
+
+    function updateDstToken(address _token, bool _status)
+        public
+        onlyMasterOwner
+    {
+        require(_token != address(0), "ZERO_ADDRESS");
+
+        require(_status != dstTokens[_token], "Same status");
+        srcTokens[_token] = _status;
     }
 
     function getPairId(address _srcToken, address _dstToken)
@@ -219,9 +282,7 @@ contract BridgeConverter is MultiOwners {
         uint256 _id,
         bytes32 _convertedHash,
         uint256 _amount
-    ) external onlyOwner {
-        require(iam.isWhitelist(address(this), _user), "User is not whitelist");
-
+    ) external onlyOwner isSrcToken(_srcToken) isDstToken(_dstToken) {
         bytes32 hash = keccak256(
             abi.encodePacked(_user, _srcToken, _dstToken, _id, _amount)
         );
@@ -252,17 +313,17 @@ contract BridgeConverter is MultiOwners {
         bytes32 _convertedHash,
         uint256 _amount,
         bytes memory _signature
-    ) external onlyOwner {
+    ) external isMpcReleaser isSrcToken(_srcToken) isDstToken(_dstToken) {
         require(iam.isWhitelist(address(this), _user), "User is not whitelist");
 
         bytes32 hash = keccak256(
             abi.encodePacked(_user, _srcToken, _dstToken, _id, _amount)
         );
+        require(hash == _convertedHash, "Invalid hash");
 
         require(!releasedHashs[hash], "Hash already released");
         releasedHashs[hash] = true;
 
-        require(hash == _convertedHash, "Invalid hash");
         address signer = getSigner(hash, _signature);
         require(isOwner(signer), "Invalid MPC's signature");
 
@@ -306,9 +367,25 @@ contract BridgeConverter is MultiOwners {
         emit Release(releaseData.user, _id);
     }
 
+    function burn(address _token, uint256 _amount)
+        public
+        onlyMasterOwner
+        isSrcToken(_token)
+        isDstToken(_token)
+    {
+        require(_token != address(0), "ZERO_ADDRESS");
+        IBurnERC20 token = IBurnERC20(_token);
+        require(
+            _amount > 0 && _amount <= token.balanceOf(address(this)),
+            "Invalid amount"
+        );
+
+        token.burn(_amount);
+    }
+
     function safu(address _token, address _to) public onlyMasterOwner {
-        require(_token != address(0), "Token cannot be 0x0");
-        require(_to != address(0), "To cannot be 0x0");
+        require(_token != address(0), "ZERO_ADDRESS");
+        require(_to != address(0), "ZERO_ADDRESS");
         uint256 _amount = IERC20(_token).balanceOf(address(this));
         IERC20(_token).transfer(_to, _amount);
 
@@ -316,7 +393,7 @@ contract BridgeConverter is MultiOwners {
     }
 
     function safuNative(address _to) public onlyMasterOwner {
-        require(_to != address(0), "To cannot be 0x0");
+        require(_to != address(0), "ZERO_ADDRESS");
 
         uint256 _amount = address(this).balance;
         payable(_to).transfer(_amount);
@@ -381,8 +458,16 @@ contract BridgeConverter is MultiOwners {
         returns (address)
     {
         (bytes32 r, bytes32 s, uint8 v) = splitSignature(_signature);
+        if (v < 27) {
+            v += 27;
+        }
 
-        return ecrecover(_signedMessageHash, v, r, s);
+        // If the version is correct return the signer address
+        if (v != 27 && v != 28) {
+            return (address(0));
+        } else {
+            return ecrecover(_signedMessageHash, v, r, s);
+        }
     }
 
     function splitSignature(bytes memory sig)

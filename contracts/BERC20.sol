@@ -41,7 +41,7 @@ abstract contract BERC20 is MultiOwners, IBERC20, PausableUpgradeable {
 
     string private _name;
     string private _symbol;
-
+    
     /**
      * @dev Sets the values for {name} and {symbol}.
      *
