@@ -7,18 +7,8 @@ import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeab
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "./MultiOwners.sol";
 import "./interfaces/IAM.sol";
-
-interface IBERC20 is IERC20 {
-    function bridge(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) external;
-}
-
-interface IBurnERC20 is IERC20 {
-    function burn(uint256 _amount) external;
-}
+import "./interfaces/IBERC20.sol";
+import "./interfaces/IBurnERC20.sol";
 
 contract BridgeConverter is MultiOwners {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
