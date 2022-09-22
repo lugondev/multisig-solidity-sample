@@ -28,7 +28,7 @@ contract TokenInBAM is BToken {
         address _user,
         address _to,
         uint256 _amount
-    ) public onlyBridge {
+    ) public onlyBridge override{
         _forceTransfer(_user, _to, _amount);
 
         emit Bridge(_user, _to, _amount);

@@ -8,7 +8,8 @@ import '@nomiclabs/hardhat-etherscan'
 
 const INFURA_API_KEY = process.env.INFURA_API_KEY || ''
 const RINKEBY_PRIVATE_KEY = process.env.RINKEBY_PRIVATE_KEY!  // well known private key
-const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
+// const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
+const ETHERSCAN_API_KEY = "1CS5D1BZ7FPHRR55PGWIZXKV339R75IF9P"
 
 const accounts = [
 	"3c35971975bc77bf7bdb29f2af493a8a5e5fbb6d10c2cb44aba491ad31665316",
@@ -18,10 +19,11 @@ const config: HardhatUserConfig = {
 	defaultNetwork: 'hardhat',
 	solidity: {
 		compilers: [
-			{ version: '0.8.0', settings: {} },
-			{ version: '0.8.3', settings: {} },
-			{ version: '0.8.4', settings: {} },
-			{ version: '0.8.9', settings: {} },
+			// { version: '0.8.0', settings: {} },
+			// { version: '0.8.3', settings: {} },
+			// { version: '0.8.4', settings: {} },
+			// { version: '0.8.9', settings: {} },
+			{ version: '0.8.7', settings: {} },
 		],
 	},
 	networks: {
