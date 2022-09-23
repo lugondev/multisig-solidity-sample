@@ -16,7 +16,20 @@ contract SimpleStorage {
         storedData = x;
     }
 
+    function callOther(address _other, bytes memory data) public {
+        (bool success, ) = _other.call(data);
+        require(success, "other call: failed!!!");
+    }
+
+    function setOther(address _other, uint256 x) public {
+        SimpleStorage(_other).set(x);
+    }
+
     function get() public view returns (uint256 retVal) {
         return storedData;
+    }
+
+    function getOther(address _other) public view returns (uint256 retVal) {
+        return SimpleStorage(_other).get();
     }
 }
