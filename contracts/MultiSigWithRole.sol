@@ -5,14 +5,14 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "./common/MultiSend.sol";
-import "./common/SecuredTokenTransfer.sol";
 import "./common/SelfAuthorized.sol";
 
-contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
+contract MultiSigWithRole is MultiSend, SelfAuthorized {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.UintSet;
     using Counters for Counters.Counter;
 
+    event UpdateWeight(uint256 _newWeight);
     event Deposit(address indexed _sender, uint256 _amount);
     event Withdraw(address indexed _receiver, uint256 _amount);
     event ExecuteTransaction(uint256 indexed _id);
@@ -70,7 +70,7 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         );
         require(
             (_owners.length / 2) + 1 <= _weight,
-            "Weight is too low to ensure safety"
+            "weight is too low to ensure safety"
         );
 
         for (uint256 i = 0; i < _owners.length; i++) {
@@ -87,12 +87,15 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
     }
 
     modifier onlyOwner() {
-        require(isOwner(msg.sender), "not owner");
+        require(isOwner(msg.sender), "only called by owner");
         _;
     }
 
     modifier onlySubmitter() {
-        require(isSubmitter(msg.sender), "not submitter");
+        require(
+            isSubmitter(msg.sender) || isOwner(msg.sender),
+            "you do not have permission to submit transaction"
+        );
         _;
     }
 
@@ -101,7 +104,7 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
             _id > 0 &&
                 _id <= _transactionId.current() &&
                 pendingTxs.contains(_id),
-            "invalid transaction id"
+            "this transaction is not pending"
         );
         _;
     }
@@ -110,22 +113,33 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         emit Deposit(msg.sender, msg.value);
     }
 
+    function updateWeight(uint256 _weight) public authorized {
+        require(totalPendingTxs() == 0, "only call without any pending txs");
+        require(
+            (totalOwner() / 2) + 1 <= _weight,
+            "weight is too low to ensure safety"
+        );
+
+        weight = _weight;
+        emit UpdateWeight(_weight);
+    }
+
     function addRole(address _account, Role _role) public authorized {
         if (_role == Role.OWNER) {
             require(
                 totalPendingTxs() == 0,
-                "Only call without any pending txs"
+                "only call without any pending txs"
             );
-            require(!isOwner(_account), "Owner is exists.");
+            require(!isOwner(_account), "owner is exists");
             require(
-                (totalOwner() + 1) / 2 <= weight,
-                "Weight is too low. Increase weight first"
+                ((totalOwner() + 1) / 2) + 1 <= weight,
+                "weight is too low to ensure safety"
             );
             owners.add(_account);
 
             emit AddOwner(_account);
         } else {
-            require(!isSubmitter(_account), "Submitter is exists.");
+            require(!isSubmitter(_account), "submitter is exists");
             submitters.add(_account);
 
             emit AddSubmitter(_account);
@@ -136,9 +150,9 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         if (_role == Role.OWNER) {
             require(
                 totalPendingTxs() == 0,
-                "Only call without any pending txs"
+                "only call without any pending txs"
             );
-            require(isOwner(_account), "Owner is not exists.");
+            require(isOwner(_account), "owner is not exists");
             if (totalOwner() - 1 < weight) {
                 weight = totalOwner() - 1;
             }
@@ -146,7 +160,7 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
 
             emit RevokeOwner(_account);
         } else {
-            require(isSubmitter(_account), "Submitter is not exists.");
+            require(isSubmitter(_account), "submitter is not exists");
             submitters.remove(_account);
 
             emit RevokeSubmitter(_account);
@@ -165,8 +179,16 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         return owners.length();
     }
 
+    function totalSubmitter() public view returns (uint256) {
+        return submitters.length();
+    }
+
     function getOwnerByIndex(uint256 _index) public view returns (address) {
         return owners.at(_index);
+    }
+
+    function getSubmitterByIndex(uint256 _index) public view returns (address) {
+        return submitters.at(_index);
     }
 
     function totalPendingTxs() public view returns (uint256) {
@@ -219,6 +241,7 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         string memory _note
     ) public onlySubmitter {
         _transactionId.increment();
+
         transactions[currentTransactionId()] = Transaction({
             submitter: msg.sender,
             target: _target,
@@ -244,7 +267,8 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         isPendingTransaction(_id)
         onlyOwner
     {
-        require(isConfirmed[_id][msg.sender], "must confirm first");
+        require(isConfirmed[_id][msg.sender], "you have not confirmed this tx");
+
         Transaction storage transactionData = transactions[_id];
         transactionData.confirmations--;
         isConfirmed[_id][msg.sender] = false;
@@ -259,8 +283,9 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
     {
         require(
             !isConfirmed[_id][msg.sender],
-            "you confirmed this transaction"
+            "you have already confirmed this tx"
         );
+
         Transaction storage transactionData = transactions[_id];
         transactionData.confirmations++;
         isConfirmed[_id][msg.sender] = true;
@@ -274,17 +299,13 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         onlyOwner
     {
         Transaction storage transactionData = transactions[_id];
-        require(transactionData.status == TxStatus.PENDING, "Invalid status");
-        if (isOwner(transactionData.submitter)) {
-            require(
-                transactionData.submitter == msg.sender,
-                "invalid submitter"
-            );
-            require(
-                transactionData.confirmations == 0,
-                "invalid transaction status"
-            );
-        }
+
+        require(
+            ((transactionData.submitter == msg.sender || isOwner(msg.sender)) &&
+                transactionData.confirmations == 0) ||
+                transactionData.deadline < block.timestamp,
+            "can not cancel this tx"
+        );
 
         pendingTxs.remove(_id);
         cancelTxs.add(_id);
@@ -295,13 +316,14 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
 
     function executeTransaction(uint256 _id) public isPendingTransaction(_id) {
         Transaction storage transactionData = transactions[_id];
+        require(transactionData.deadline >= block.timestamp, "tx expired");
         require(
-            isOwner(transactionData.submitter),
-            "summiter is revoked owner"
+            isSubmitter(transactionData.submitter),
+            "summitter is revoked by owner"
         );
         require(
             transactionData.confirmations >= weight,
-            "not enough confirmations"
+            "not enough confirmations to executed"
         );
 
         pendingTxs.remove(_id);
@@ -321,9 +343,10 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         uint256 _amount
     ) public authorized {
         require(_amount > 0, "amount must be greater than 0");
+
         if (_token == address(0)) {
             uint256 currentBalance = address(this).balance;
-            require(currentBalance >= _amount, "Insufficient balance");
+            require(currentBalance >= _amount, "insufficient balance");
             payable(_receiver).transfer(_amount);
 
             emit Withdraw(_receiver, _amount);

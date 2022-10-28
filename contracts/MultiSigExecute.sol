@@ -262,7 +262,7 @@ contract MultiSigExecute {
         Transaction storage transactionData = transactions[_id];
         require(
             isOwner(transactionData.submitter),
-            "summiter is revoked owner"
+            "summitter is revoked owner"
         );
         require(
             transactionData.confirmations >= weight,

@@ -4,11 +4,6 @@ pragma solidity >=0.7.0 <0.9.0;
 /// @title SecuredTokenTransfer - Secure token transfer
 /// @author Richard Meissner - <richard@gnosis.pm>
 contract SecuredTokenTransfer {
-    address private immutable transferSingleton;
-
-    constructor() {
-        transferSingleton = address(this);
-    }
 
     /// @dev Transfers a token and returns if it was a success
     /// @param token Token that should be transferred
@@ -19,10 +14,6 @@ contract SecuredTokenTransfer {
         address receiver,
         uint256 amount
     ) internal returns (bool transferred) {
-        require(
-            address(this) != transferSingleton,
-            "MultiSend should only be called via delegatecall"
-        );
         // 0xa9059cbb - keccack("transfer(address,uint256)")
         bytes memory data = abi.encodeWithSelector(
             0xa9059cbb,
