@@ -65,7 +65,7 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
 
     constructor(address[] memory _owners, uint256 _weight) {
         require(
-            _weight > 1 && _weight <= _owners.length,
+            _weight >= 1 && _weight <= _owners.length,
             "invalid number of required confirmations"
         );
         require(
