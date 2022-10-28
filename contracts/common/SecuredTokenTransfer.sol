@@ -18,7 +18,7 @@ contract SecuredTokenTransfer {
         address token,
         address receiver,
         uint256 amount
-    ) public returns (bool transferred) {
+    ) internal returns (bool transferred) {
         require(
             address(this) != transferSingleton,
             "MultiSend should only be called via delegatecall"

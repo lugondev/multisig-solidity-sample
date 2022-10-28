@@ -13,7 +13,8 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
     using EnumerableSet for EnumerableSet.UintSet;
     using Counters for Counters.Counter;
 
-    event Deposit(address indexed _sender, uint256 _amount, uint256 _balance);
+    event Deposit(address indexed _sender, uint256 _amount);
+    event Withdraw(address indexed _receiver, uint256 _amount);
     event ExecuteTransaction(uint256 indexed _id);
     event CancelTransaction(uint256 indexed _id);
     event SubmitTransaction(
@@ -79,6 +80,7 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
             require(!isOwner(owner), "owner not unique");
 
             owners.add(owner);
+            submitters.add(owner);
         }
 
         weight = _weight;
@@ -105,7 +107,7 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
     }
 
     receive() external payable {
-        emit Deposit(msg.sender, msg.value, address(this).balance);
+        emit Deposit(msg.sender, msg.value);
     }
 
     function addRole(address _account, Role _role) public authorized {
@@ -311,5 +313,22 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
         transactionData.status = TxStatus.SUCCESS;
 
         emit ExecuteTransaction(_id);
+    }
+
+    function payment(
+        address _token,
+        address _receiver,
+        uint256 _amount
+    ) public authorized {
+        require(_amount > 0, "amount must be greater than 0");
+        if (_token == address(0)) {
+            uint256 currentBalance = address(this).balance;
+            require(currentBalance >= _amount, "Insufficient balance");
+            payable(_receiver).transfer(_amount);
+
+            emit Withdraw(_receiver, _amount);
+        } else {
+            require(super.transferToken(_token, _receiver, _amount));
+        }
     }
 }
