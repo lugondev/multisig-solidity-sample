@@ -68,7 +68,7 @@ contract MultiSigWithRole is MultiSend, SecuredTokenTransfer, SelfAuthorized {
             "invalid number of required confirmations"
         );
         require(
-            (_owners.length / 2) + 1 <= weight,
+            (_owners.length / 2) + 1 <= _weight,
             "Weight is too low to ensure safety"
         );
 
