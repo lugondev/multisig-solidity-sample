@@ -296,7 +296,7 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
     function cancelTransaction(uint256 _id)
         public
         isPendingTransaction(_id)
-        onlyOwner
+        onlySubmitter
     {
         Transaction storage transactionData = transactions[_id];
 
@@ -314,7 +314,11 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
         emit CancelTransaction(_id);
     }
 
-    function executeTransaction(uint256 _id) public isPendingTransaction(_id) {
+    function executeTransaction(uint256 _id)
+        public
+        isPendingTransaction(_id)
+        onlySubmitter
+    {
         Transaction storage transactionData = transactions[_id];
         require(transactionData.deadline >= block.timestamp, "tx expired");
         require(
