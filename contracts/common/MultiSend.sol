@@ -5,11 +5,11 @@ pragma solidity ^0.8.3;
 import "./SecuredTokenTransfer.sol";
 
 contract MultiSend is SecuredTokenTransfer {
-    function multiSend(
+    function _multiSend(
         address _token,
         address[] memory _receivers,
         uint256[] memory _amounts
-    ) public {
+    ) internal {
         require(_receivers.length == _amounts.length, "invalid data");
         for (uint256 i = 0; i < _receivers.length; i++) {
             bool success = transferToken(_token, _receivers[i], _amounts[i]);
@@ -17,11 +17,11 @@ contract MultiSend is SecuredTokenTransfer {
         }
     }
 
-    function multiSendTokens(
+    function _multiSendTokens(
         address[] memory _tokens,
         address[] memory _receivers,
         uint256[] memory _amounts
-    ) public {
+    ) internal {
         require(_receivers.length == _amounts.length, "invalid data");
         require(_receivers.length == _tokens.length, "invalid data");
         for (uint256 i = 0; i < _receivers.length; i++) {

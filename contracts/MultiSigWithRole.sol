@@ -355,7 +355,23 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
 
             emit Withdraw(_receiver, _amount);
         } else {
-            require(super.transferToken(_token, _receiver, _amount));
+            require(transferToken(_token, _receiver, _amount));
         }
+    }
+
+    function multiSend(
+        address _token,
+        address[] memory _receivers,
+        uint256[] memory _amounts
+    ) public authorized {
+        _multiSend(_token, _receivers, _amounts);
+    }
+
+    function multiSendTokens(
+        address[] memory _tokens,
+        address[] memory _receivers,
+        uint256[] memory _amounts
+    ) public authorized {
+        _multiSendTokens(_tokens, _receivers, _amounts);
     }
 }
