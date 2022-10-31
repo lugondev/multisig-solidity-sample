@@ -4,12 +4,11 @@ pragma solidity >=0.7.0 <0.9.0;
 /// @title SecuredTokenTransfer - Secure token transfer
 /// @author Richard Meissner - <richard@gnosis.pm>
 contract SecuredTokenTransfer {
-
     /// @dev Transfers a token and returns if it was a success
     /// @param token Token that should be transferred
     /// @param receiver Receiver to whom the token should be transferred
     /// @param amount The amount of tokens that should be transferred
-    function transferToken(
+    function _transferToken(
         address token,
         address receiver,
         uint256 amount

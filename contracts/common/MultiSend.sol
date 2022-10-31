@@ -12,7 +12,7 @@ contract MultiSend is SecuredTokenTransfer {
     ) internal {
         require(_receivers.length == _amounts.length, "invalid data");
         for (uint256 i = 0; i < _receivers.length; i++) {
-            bool success = transferToken(_token, _receivers[i], _amounts[i]);
+            bool success = _transferToken(_token, _receivers[i], _amounts[i]);
             require(success, "transfer failed");
         }
     }
@@ -25,7 +25,7 @@ contract MultiSend is SecuredTokenTransfer {
         require(_receivers.length == _amounts.length, "invalid data");
         require(_receivers.length == _tokens.length, "invalid data");
         for (uint256 i = 0; i < _receivers.length; i++) {
-            bool success = transferToken(
+            bool success = _transferToken(
                 _tokens[i],
                 _receivers[i],
                 _amounts[i]

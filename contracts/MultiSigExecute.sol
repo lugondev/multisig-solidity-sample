@@ -258,7 +258,11 @@ contract MultiSigExecute {
         emit CancelTransaction(_id);
     }
 
-    function executeTransaction(uint256 _id) public isPendingTransaction(_id) {
+    function executeTransaction(uint256 _id)
+        public
+        payable
+        isPendingTransaction(_id)
+    {
         Transaction storage transactionData = transactions[_id];
         require(
             isOwner(transactionData.submitter),
@@ -271,7 +275,9 @@ contract MultiSigExecute {
 
         pendingTxs.remove(_id);
 
-        (bool success, ) = transactionData.target.call(transactionData.data);
+        (bool success, ) = transactionData.target.call{value: msg.value}(
+            transactionData.data
+        );
         require(success, "execute: failed!!!");
 
         executedTxs.add(_id);

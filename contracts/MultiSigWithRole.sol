@@ -62,6 +62,7 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
     mapping(uint256 => Transaction) public transactions;
 
     mapping(uint256 => mapping(address => bool)) public isConfirmed;
+    uint256 defaultDeadline;
 
     constructor(address[] memory _owners, uint256 _weight) {
         require(
@@ -80,10 +81,10 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
             require(!isOwner(owner), "owner not unique");
 
             owners.add(owner);
-            submitters.add(owner);
         }
 
         weight = _weight;
+        defaultDeadline = 1 days;
     }
 
     modifier onlyOwner() {
@@ -91,7 +92,7 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
         _;
     }
 
-    modifier onlySubmitter() {
+    modifier validSubmitter() {
         require(
             isSubmitter(msg.sender) || isOwner(msg.sender),
             "you do not have permission to submit transaction"
@@ -115,6 +116,7 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
 
     function updateWeight(uint256 _weight) public authorized {
         require(totalPendingTxs() == 0, "only call without any pending txs");
+        require(totalOwner() >= _weight, "weight is too high to ensure safety");
         require(
             (totalOwner() / 2) + 1 <= _weight,
             "weight is too low to ensure safety"
@@ -239,7 +241,13 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
         bytes memory _data,
         uint256 _deadline,
         string memory _note
-    ) public onlySubmitter {
+    ) public validSubmitter {
+        if (_deadline == 0) {
+            _deadline = defaultDeadline + block.timestamp;
+        } else {
+            require(_deadline > block.timestamp, "invalid deadline");
+        }
+
         _transactionId.increment();
 
         transactions[currentTransactionId()] = Transaction({
@@ -296,7 +304,7 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
     function cancelTransaction(uint256 _id)
         public
         isPendingTransaction(_id)
-        onlySubmitter
+        validSubmitter
     {
         Transaction storage transactionData = transactions[_id];
 
@@ -316,8 +324,9 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
 
     function executeTransaction(uint256 _id)
         public
+        payable
         isPendingTransaction(_id)
-        onlySubmitter
+        validSubmitter
     {
         Transaction storage transactionData = transactions[_id];
         require(transactionData.deadline >= block.timestamp, "tx expired");
@@ -332,7 +341,9 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
 
         pendingTxs.remove(_id);
 
-        (bool success, ) = transactionData.target.call(transactionData.data);
+        (bool success, ) = transactionData.target.call{value: msg.value}(
+            transactionData.data
+        );
         require(success, "execute: failed!!!");
 
         executedTxs.add(_id);
@@ -355,7 +366,7 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
 
             emit Withdraw(_receiver, _amount);
         } else {
-            require(transferToken(_token, _receiver, _amount));
+            require(_transferToken(_token, _receiver, _amount));
         }
     }
 
