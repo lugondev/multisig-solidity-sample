@@ -331,7 +331,8 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
         Transaction storage transactionData = transactions[_id];
         require(transactionData.deadline >= block.timestamp, "tx expired");
         require(
-            isSubmitter(transactionData.submitter),
+            isSubmitter(transactionData.submitter) ||
+                isOwner(transactionData.submitter),
             "summitter is revoked by owner"
         );
         require(
