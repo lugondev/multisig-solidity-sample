@@ -36,9 +36,8 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
     EnumerableSet.UintSet pendingTxs;
     EnumerableSet.UintSet executedTxs;
     EnumerableSet.UintSet cancelTxs;
-
-    uint256 public weight;
     Counters.Counter private _transactionId;
+
     enum TxStatus {
         PENDING,
         SUCCESS,
@@ -60,9 +59,9 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
     }
 
     mapping(uint256 => Transaction) public transactions;
-
-    mapping(uint256 => mapping(address => bool)) public isConfirmed;
-    uint256 defaultDeadline;
+    mapping(uint256 => mapping(address => bool)) private _isConfirmed;
+    uint256 defaultDeadline = 1 days;
+    uint256 public weight;
 
     constructor(address[] memory _owners, uint256 _weight) {
         require(
@@ -84,7 +83,6 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
         }
 
         weight = _weight;
-        defaultDeadline = 1 days;
     }
 
     modifier onlyOwner() {
@@ -232,6 +230,14 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
         return (txId, transactions[txId]);
     }
 
+    function isConfirmed(uint256 _id, address _user)
+        public
+        view
+        returns (bool)
+    {
+        return _isConfirmed[_id][_user];
+    }
+
     function currentTransactionId() public view returns (uint256) {
         return _transactionId.current();
     }
@@ -275,11 +281,14 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
         isPendingTransaction(_id)
         onlyOwner
     {
-        require(isConfirmed[_id][msg.sender], "you have not confirmed this tx");
+        require(
+            _isConfirmed[_id][msg.sender],
+            "you have not confirmed this tx"
+        );
 
         Transaction storage transactionData = transactions[_id];
         transactionData.confirmations--;
-        isConfirmed[_id][msg.sender] = false;
+        _isConfirmed[_id][msg.sender] = false;
 
         emit RevokeTransaction(_id);
     }
@@ -290,13 +299,13 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
         onlyOwner
     {
         require(
-            !isConfirmed[_id][msg.sender],
+            !_isConfirmed[_id][msg.sender],
             "you have already confirmed this tx"
         );
 
         Transaction storage transactionData = transactions[_id];
         transactionData.confirmations++;
-        isConfirmed[_id][msg.sender] = true;
+        _isConfirmed[_id][msg.sender] = true;
 
         emit ConfirmTransaction(_id);
     }
