@@ -64,6 +64,12 @@ contract MultiSigWithRole is MultiSend, SelfAuthorized {
     uint256 public weight;
 
     constructor(address[] memory _owners, uint256 _weight) {
+        if (_owners.length == 0) {
+            owners.add(msg.sender);
+            weight = 1;
+            return;
+        }
+
         require(
             _weight >= 1 && _weight <= _owners.length,
             "invalid number of required confirmations"
