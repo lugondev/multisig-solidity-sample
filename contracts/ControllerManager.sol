@@ -31,12 +31,13 @@ contract ControllerManager is BaseController {
         return _nonces[tokenId];
     }
 
-    function verify(
-        ControllerRequest calldata req,
-        address verifier,
-        bytes calldata signature
-    ) public view override returns (bool) {
-        return _verify(req, verifier, signature);
+    function verify(ControllerRequest calldata req, bytes calldata signature)
+        public
+        view
+        override
+        returns (bool)
+    {
+        return _verify(req, signature);
     }
 
     function execute(ControllerRequest calldata req, bytes calldata signature)
@@ -49,10 +50,7 @@ contract ControllerManager is BaseController {
             isController(req.verifier),
             "ControllerManager: CALLER_NOT_CONTROLLER"
         );
-        require(
-            verify(req, req.verifier, signature),
-            "ControllerManager: SIGNATURE_INVALID"
-        );
+        require(verify(req, signature), "ControllerManager: SIGNATURE_INVALID");
         return
             _execute(
                 req.verifier,

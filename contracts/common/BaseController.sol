@@ -11,15 +11,16 @@ import "../interfaces/IController.sol";
 abstract contract BaseController is IController, Context, Ownable {
     using ECDSAUpgradeable for bytes32;
 
-    function _verify(
-        ControllerRequest memory req,
-        address target,
-        bytes memory signature
-    ) internal view virtual returns (bool) {
+    function _verify(ControllerRequest memory req, bytes memory signature)
+        internal
+        view
+        virtual
+        returns (bool)
+    {
         uint256 nonce = this.nonceOf(req.tokenId);
         address signer = _recover(
             keccak256(req.data),
-            target,
+            req.to,
             nonce,
             signature
         );

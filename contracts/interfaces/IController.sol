@@ -15,7 +15,6 @@ interface IController {
 
     function verify(
         ControllerRequest calldata req,
-        address verifier,
         bytes calldata signature
     ) external view returns (bool);
 
